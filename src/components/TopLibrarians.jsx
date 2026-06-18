@@ -72,7 +72,7 @@ const TopLibrarians = () => {
                         transition={{ duration: 0.5 }}
                         className="text-amber-400 font-semibold tracking-wider text-xs md:text-sm uppercase mb-2"
                     >
-                        Extra Section 1
+                        Top Librarians Section
                     </motion.p>
                     <motion.h2
                         initial={{ opacity: 0, y: 10 }}
