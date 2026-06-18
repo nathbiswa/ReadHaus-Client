@@ -249,7 +249,7 @@
     {
         "_id": "20",
         "title": "Refactoring",
-        "author": "Martin Fowlerr",
+        "author": "Martin Fowler",
         "description": "Improving existing code.",
         "image": "https://images.unsplash.com/photo-1532012197267-da84d127e765",
         "category": "Programming",
