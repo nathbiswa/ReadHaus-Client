@@ -157,6 +157,7 @@ export default function BrowseBooks() {
                     {books.map((book) => (
                         <BookCard
                             key={book._id}
+                            _id={book._id}
                             title={book.title}
                             author={book.author}
                             description={book.description}
@@ -165,7 +166,8 @@ export default function BrowseBooks() {
                             averageRating={book.averageRating}
                             totalReviews={book.totalReviews}
                             deliveryFee={book.deliveryFee}
-                            status={book.status} // পাস করা হলো "Unavailable" ব্যাজ লজিকের জন্য
+                            status={book.status}
+                            dateAdded={book.dateAdded} // ডিটেইলস পেজের জন্য এটি প্রয়োজন
                         />
                     ))}
                 </div>

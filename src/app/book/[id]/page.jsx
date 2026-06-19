@@ -1,224 +1,228 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
-import { getSingleBook, getBookReviews } from "@/lib/action/getbooks";
-import { Star, Truck, Bookmark, MessageSquare, User } from "lucide-react";
+import { useParams, useRouter } from "next/navigation";
+import { Star, Truck, Calendar, Heart, ArrowLeft, ShieldCheck, User, MessageSquare, Send, DollarSign } from "lucide-react";
+import { getSingleBook } from "@/lib/action/getbooks";
 import axios from "axios";
+import { toast } from "react-toastify";
+import { authClient } from "@/lib/auth-client";
 
 export default function BookDetailsPage() {
     const { id } = useParams();
+    const router = useRouter();
     const [book, setBook] = useState(null);
-    const [reviews, setReviews] = useState([]);
     const [loading, setLoading] = useState(true);
 
-    // রিভিউ ফর্ম স্টেটস
-    const [rating, setRating] = useState(5);
-    const [reviewText, setReviewText] = useState("");
-    const [submitting, setSubmitting] = useState(false);
+    // রিভিউ ও কমেন্ট স্টেট
+    const [reviews, setReviews] = useState([]);
+    const [newComment, setNewComment] = useState("");
+    const [newRating, setNewRating] = useState(5);
 
-    // ডামি লগইন করা ইউজার ইনফো (Better Auth বা আপনার Auth স্টেট থেকে এটি আসবে)
-    const currentUser = {
-        name: "Ahsan Habib",
-        email: "ahsan@example.com",
-        image: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=150"
-    };
-
-    const loadBookData = async () => {
-        setLoading(true);
-        const bookData = await getSingleBook(id);
-        const reviewData = await getBookReviews(id);
-        if (bookData) setBook(bookData);
-        setReviews(reviewData);
-        setLoading(false);
-    };
+    // Better Auth সেশন রিসিভ করা হচ্ছে
+    const { data: session } = authClient.useSession();
+    const user = session?.user;
+    console.log("details page user", user);
 
     useEffect(() => {
-        if (id) loadBookData();
+        const fetchBookDetails = async () => {
+            try {
+                setLoading(true);
+                const response = await getSingleBook(id);
+                if (response) {
+                    setBook(response);
+                    setReviews(response.reviews || []);
+                }
+            } catch (error) {
+                console.error("Error fetching book details:", error);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        if (id) fetchBookDetails();
     }, [id]);
 
-    // রিভিউ সাবমিট হ্যান্ডলার
-    const handleReviewSubmit = async (e) => {
-        e.preventDefault();
-        if (!reviewText.trim()) return alert("Please write some review text!");
+    const handleRequestDelivery = async () => {
+        if (!user) {
+            toast.error("Please login first to request delivery!");
+            router.push("/login");
+            return;
+        }
 
-        setSubmitting(true);
+        const currentStatus = book?.status?.trim().toLowerCase();
+        if (currentStatus !== "published" && currentStatus !== "available") {
+            toast.error("This book is currently checked out or unavailable.");
+            return;
+        }
+
+        toast.success("Welcome to Stripe Hosted Payment Page...");
+
         try {
-            const reviewPayload = {
-                bookId: id,
-                userName: currentUser.name,
-                userEmail: currentUser.email,
-                userImage: currentUser.image,
-                rating,
-                reviewText
-            };
+            // 🚀 Next.js API Routes এর সাথে মিল রেখে পাথ আপডেট করা হয়েছে
+            const paymentResponse = await axios.post("/api/payments", {
+                bookId: book._id,
+                title: book.title,
+                deliveryFee: book.deliveryFee,
+                userEmail: user.email,
+                userName: user.name
+            });
 
-            const response = await axios.post(`${process.env.NEXT_PUBLIC_BASE_URL}/api/reviews`, reviewPayload);
-            if (response.data.success) {
-                setReviewText("");
-                setRating(5);
-                // ডাটাবেজ আপডেট হওয়ার পর ফ্রন্টএন্ড ডাটা রি-লোউড করা
-                await loadBookData();
-                alert("Review submitted successfully!");
+            if (paymentResponse.data.url) {
+                window.location.href = paymentResponse.data.url;
             }
-        } catch (error) {
-            console.error("Error submitting review:", error);
-            alert("Failed to submit review.");
-        } finally {
-            setSubmitting(false);
+        } catch (err) {
+            console.error("Stripe redirection failed", err);
+            toast.error("Failed to initiate payment. Please try again.");
         }
     };
 
-    if (loading) return <div className="text-center py-20 text-white bg-gray-950 min-h-screen">Loading Book Details...</div>;
-    if (!book) return <div className="text-center py-20 text-white bg-gray-950 min-h-screen">Book not found!</div>;
+    const handleReviewSubmit = async (e) => {
+        e.preventDefault();
+        if (!newComment.trim()) return;
+
+        if (!user) {
+            toast.error("Please login first to write a review!");
+            return;
+        }
+
+        const newReview = {
+            _id: Date.now().toString(),
+            userName: user.name || "Anonymous User",
+            rating: newRating,
+            comment: newComment
+        };
+
+        setReviews([newReview, ...reviews]);
+        setNewComment("");
+        toast.success("Review submitted successfully!");
+    };
+
+    if (loading) {
+        return (
+            <div className="min-h-screen bg-gray-950 flex items-center justify-center text-white">
+                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-amber-400"></div>
+            </div>
+        );
+    }
+
+    if (!book) {
+        return (
+            <div className="min-h-screen bg-gray-950 text-white text-center py-20">
+                <p className="mb-4">Book not found!</p>
+                <button onClick={() => router.back()} className="text-amber-400 font-bold">Go Back</button>
+            </div>
+        );
+    }
+
+    const status = book.status?.trim().toLowerCase();
+    const isBookAvailable = status === "published" || status === "available";
 
     return (
-        <main className="bg-gray-950 text-white min-h-screen py-12 px-4 md:px-8">
+        <main className="min-h-screen bg-gray-950 text-gray-100 py-12 px-4 md:px-8">
             <div className="max-w-6xl mx-auto space-y-12">
 
-                {/* 📚 ১. বইয়ের বিস্তারিত ইনফরমেশন সেকশন */}
-                <div className="grid grid-cols-1 md:grid-cols-12 gap-8 bg-gray-900 border border-gray-800 p-6 md:p-8 rounded-2xl shadow-xl">
-                    {/* কভার ইমেজ */}
-                    <div className="md:col-span-4 bg-gray-950 p-6 rounded-xl border border-gray-800 flex items-center justify-center">
-                        <img
-                            src={book.image || "https://images.unsplash.com/photo-1543002588-bfa74002ed7e"}
-                            alt={book.title}
-                            className="max-h-80 object-contain rounded-lg shadow-md hover:scale-105 transition-transform duration-300"
-                        />
+                <button
+                    onClick={() => router.back()}
+                    className="flex items-center gap-2 text-sm font-semibold text-gray-400 hover:text-amber-400 mb-4 transition-colors group"
+                >
+                    <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" /> Back to Browse
+                </button>
+
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 bg-gray-900 border border-gray-800 rounded-3xl p-6 md:p-10 shadow-2xl">
+
+                    <div className="lg:col-span-5 bg-gray-950 rounded-2xl p-8 flex items-center justify-center border border-gray-800/60 relative">
+                        <img src={book.image} alt={book.title} className="max-h-[380px] object-contain rounded-lg shadow-2xl" />
+                        <span className={`absolute top-4 right-4 text-xs font-extrabold uppercase tracking-widest px-3 py-1.5 rounded-lg ${isBookAvailable ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" : "bg-rose-500/10 text-rose-400 border border-rose-500/20"}`}>
+                            {isBookAvailable ? "Available" : "Checked Out"}
+                        </span>
                     </div>
 
-                    {/* মেটাডাটা ও ডেসক্রিপশন */}
-                    <div className="md:col-span-8 flex flex-col justify-between space-y-6">
-                        <div>
-                            <span className="bg-amber-400/10 text-amber-400 border border-amber-400/20 text-xs px-3 py-1 rounded font-semibold uppercase tracking-wider">
+                    <div className="lg:col-span-7 flex flex-col justify-between space-y-6">
+                        <div className="space-y-4">
+                            <span className="text-xs font-bold text-amber-400 bg-amber-400/5 px-3 py-1 rounded-md border border-amber-400/10 uppercase tracking-wider">
                                 {book.category}
                             </span>
-                            <h1 className="text-3xl md:text-4xl font-bold font-serif text-gray-100 mt-3 mb-1">{book.title}</h1>
-                            <p className="text-gray-400 text-base">By <span className="text-gray-300 font-semibold">{book.author}</span></p>
+                            <h1 className="text-3xl md:text-4xl font-bold font-serif">{book.title}</h1>
+                            <p className="text-gray-400">By <span className="text-gray-200 font-medium text-lg">{book.author}</span></p>
 
-                            {/* রেটিং সমীকরণ ডিসপ্লে */}
-                            <div className="flex items-center gap-2 mt-3">
-                                <div className="flex text-amber-400">
-                                    {[...Array(5)].map((_, i) => (
-                                        <Star key={i} className={`w-4 h-4 ${i < Math.round(book.averageRating || 0) ? "fill-amber-400" : "text-gray-600"}`} />
-                                    ))}
+                            <div className="flex flex-wrap items-center gap-4">
+                                {/* রেটিং সেকশন */}
+                                <div className="flex items-center gap-2 bg-gray-950/40 px-3 py-1.5 rounded-lg border border-gray-800/60">
+                                    <div className="flex text-amber-400">
+                                        {[...Array(5)].map((_, i) => (
+                                            <Star key={i} className={`w-4 h-4 ${i < Math.round(book.averageRating || 0) ? "fill-amber-400" : "text-gray-700"}`} />
+                                        ))}
+                                    </div>
+                                    <span className="text-sm font-bold text-gray-200">{book.averageRating || "0.0"}</span>
+                                    <span className="text-xs text-gray-500">({book.totalReviews || 0} reviews)</span>
                                 </div>
-                                <span className="text-sm font-bold text-gray-200">{book.averageRating || "0.0"}</span>
-                                <span className="text-xs text-gray-500">({book.totalReviews || 0} reviews)</span>
+
+                                {/* 💰 ডাইনামিক প্রাইস/ডেলিভারি ফি সেকশন (নতুন যোগ করা হয়েছে) */}
+                                <div className="flex items-center gap-1.5 bg-amber-400/10 px-3 py-1.5 rounded-lg border border-amber-400/20 text-amber-400 font-bold text-sm">
+                                    <DollarSign className="w-4 h-4" />
+                                    <span>Delivery Fee: ${book.deliveryFee || 0}</span>
+                                </div>
                             </div>
 
-                            <div className="w-full h-px bg-gray-800 my-4" />
-
-                            <p className="text-gray-400 text-sm leading-relaxed">{book.description}</p>
+                            <p className="text-sm font-bold uppercase tracking-wider text-gray-400">Description</p>
+                            <p className="text-gray-300 text-sm leading-relaxed bg-gray-950/30 p-4 rounded-xl border border-gray-800/40">{book.description}</p>
                         </div>
 
-                        {/* ডেলিভারি ফি এবং অ্যাকশন বাটন */}
-                        <div className="bg-gray-950 border border-gray-800 p-4 rounded-xl flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                            <div className="flex items-center gap-3">
-                                <div className="p-3 bg-emerald-500/10 text-emerald-400 rounded-lg border border-emerald-500/20">
-                                    <Truck className="w-5 h-5" />
-                                </div>
-                                <div>
-                                    <p className="text-xs text-gray-500 uppercase tracking-wider">Delivery Charge</p>
-                                    <p className="text-xl font-bold text-emerald-400">${book.deliveryFee}</p>
-                                </div>
-                            </div>
+                        <div className="flex flex-col sm:flex-row gap-4 pt-4">
+                            <button onClick={() => alert(`"${book.title}" added to Wishlist!`)} className="flex-1 py-3.5 px-6 bg-gray-950 border border-gray-800 text-gray-300 font-bold rounded-xl text-xs uppercase flex items-center justify-center gap-2 hover:text-rose-400 hover:border-rose-500/40 transition-all">
+                                <Heart className="w-4 h-4" /> Wishlist
+                            </button>
 
-                            {/* রিকোয়ারমেন্ট: স্ট্যাটাস Published হলে Request করা যাবে, Checked Out হলে Unavailable */}
-                            {book.status === "Published" ? (
-                                <button className="w-full sm:w-auto px-6 py-3 bg-amber-400 hover:bg-amber-500 text-gray-900 font-semibold text-sm rounded uppercase tracking-wider transition-colors shadow-lg shadow-amber-400/10 flex items-center justify-center gap-2">
-                                    <Bookmark className="w-4 h-4 fill-current" /> Request Delivery
-                                </button>
+                            {isBookAvailable ? (
+                                <form action={`/api/payments`} method="POST">
+                                    <button type="submit" onClick={handleRequestDelivery} className="flex-[2] py-3.5 px-6 bg-amber-400 text-gray-900 hover:bg-amber-500 font-bold rounded-xl uppercase text-xs flex items-center justify-center gap-2 transition-all shadow-lg shadow-amber-400/10">
+                                        <ShieldCheck className="w-4 h-4" /> Request Delivery & Pay
+                                    </button>
+                                </form>
+
                             ) : (
-                                <button disabled className="w-full sm:w-auto px-6 py-3 bg-gray-800 text-gray-500 font-semibold text-sm rounded uppercase tracking-wider cursor-not-allowed border border-gray-700 flex items-center justify-center gap-2">
-                                    Unavailable (Checked Out)
+                                <button disabled className="flex-[2] py-3.5 px-6 bg-gray-800 text-gray-500 border border-gray-700/60 font-bold rounded-xl uppercase text-xs flex items-center justify-center gap-2 cursor-not-allowed">
+                                    <ShieldCheck className="w-4 h-4" /> Unavailable ({book.status})
                                 </button>
                             )}
                         </div>
                     </div>
                 </div>
 
-                {/* 📝 ২. ভেরিফাইড রিভিউ রাইটিং ফর্ম (Verified Review System) */}
-                <div className="bg-gray-900 border border-gray-800 p-6 md:p-8 rounded-2xl shadow-xl">
-                    <h3 className="text-xl font-bold font-serif text-gray-100 flex items-center gap-2 mb-6">
-                        <MessageSquare className="w-5 h-5 text-amber-400" /> Write a Verified Review
+                {/* 💬 রিভিউ এবং কমেন্টস সেকশন */}
+                <div className="bg-gray-900 border border-gray-800 rounded-3xl p-6 md:p-10 space-y-8">
+                    <h3 className="text-xl font-bold font-serif flex items-center gap-2 border-b border-gray-800 pb-4 text-amber-400">
+                        <MessageSquare className="w-5 h-5" /> Reviews & Comments ({reviews.length})
                     </h3>
 
-                    <form onSubmit={handleReviewSubmit} className="space-y-4">
-                        {/* স্টার রেটিং সিলেক্টর */}
-                        <div>
-                            <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Select Rating</label>
-                            <div className="flex gap-2">
-                                {[1, 2, 3, 4, 5].map((star) => (
-                                    <button
-                                        type="button"
-                                        key={star}
-                                        onClick={() => setRating(star)}
-                                        className="text-2xl transition-transform hover:scale-110"
-                                    >
-                                        <Star className={`w-6 h-6 ${star <= rating ? "text-amber-400 fill-amber-400" : "text-gray-600"}`} />
-                                    </button>
-                                ))}
-                            </div>
+                    <form onSubmit={handleReviewSubmit} className="bg-gray-950 border border-gray-800/80 p-5 rounded-2xl space-y-4">
+                        <h4 className="text-sm font-semibold text-gray-300">Write a Review</h4>
+                        <div className="flex flex-wrap items-center gap-4">
+                            <select value={newRating} onChange={(e) => setNewRating(Number(e.target.value))} className="bg-gray-900 border border-gray-800 rounded-lg px-3 py-1 text-sm text-amber-400 font-bold">
+                                {[5, 4, 3, 2, 1].map(num => <option key={num} value={num}>{num} Stars</option>)}
+                            </select>
                         </div>
-
-                        {/* রিভিউ টেক্সট এরিয়া */}
-                        <div>
-                            <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Your Review</label>
-                            <textarea
-                                rows="4"
-                                value={reviewText}
-                                onChange={(e) => setReviewText(e.target.value)}
-                                placeholder="Share your experience or thoughts about this book..."
-                                className="w-full bg-gray-950 border border-gray-800 text-gray-100 rounded-lg px-4 py-3 focus:outline-none focus:border-amber-400 text-sm transition-colors"
-                            />
+                        <div className="relative">
+                            <textarea rows="3" value={newComment} onChange={(e) => setNewComment(e.target.value)} placeholder="Share your thoughts..." className="w-full bg-gray-900 border border-gray-800 rounded-xl p-4 text-sm text-gray-100 focus:outline-none" />
+                            <button type="submit" className="absolute bottom-4 right-4 bg-amber-400 text-gray-900 p-2 rounded-xl hover:bg-amber-500"><Send className="w-4 h-4" /></button>
                         </div>
-
-                        <button
-                            type="submit"
-                            disabled={submitting}
-                            className="px-5 py-2.5 bg-gray-800 hover:bg-gray-700 text-amber-400 border border-gray-700 hover:border-amber-400 text-xs font-semibold rounded uppercase tracking-wider transition-all disabled:opacity-50"
-                        >
-                            {submitting ? "Submitting..." : "Submit Review"}
-                        </button>
                     </form>
-                </div>
 
-                {/* 💬 ৩. ইউজার রিভিউ লিস্ট ডিসপ্লে */}
-                <div className="space-y-4">
-                    <h3 className="text-xl font-bold font-serif text-gray-100 flex items-center gap-2">
-                        Community Reviews ({reviews.length})
-                    </h3>
-
-                    {reviews.length === 0 ? (
-                        <p className="text-gray-500 text-sm italic bg-gray-900 border border-gray-800 p-6 rounded-xl text-center">No reviews yet for this book. Be the first to share your thoughts!</p>
-                    ) : (
-                        <div className="space-y-4">
-                            {reviews.map((rev) => (
-                                <div key={rev._id} className="bg-gray-900 border border-gray-800 p-5 rounded-xl space-y-3 shadow-md">
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-3">
-                                            <img src={rev.userImage} alt={rev.userName} className="w-9 h-9 rounded-full object-cover border border-gray-700" />
-                                            <div>
-                                                <h4 className="text-sm font-bold text-gray-200">{rev.userName}</h4>
-                                                <p className="text-xs text-gray-500">{new Date(rev.dateAdded).toLocaleDateString()}</p>
-                                            </div>
-                                        </div>
-
-                                        {/* রেটিং স্টার মার্ক */}
-                                        <div className="flex text-amber-400 bg-gray-950/60 px-2 py-1 rounded border border-gray-800">
-                                            {[...Array(5)].map((_, idx) => (
-                                                <Star key={idx} className={`w-3 h-3 ${idx < rev.rating ? "fill-amber-400" : "text-gray-700"}`} />
-                                            ))}
-                                        </div>
+                    <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2">
+                        {reviews.map((rev) => (
+                            <div key={rev._id} className="bg-gray-950/40 border border-gray-800/60 p-4 rounded-xl space-y-2">
+                                <div className="flex items-center justify-between">
+                                    <span className="text-sm font-semibold text-gray-200">{rev.userName}</span>
+                                    <div className="flex text-amber-400 text-xs">
+                                        {[...Array(rev.rating || 5)].map((_, i) => <Star key={i} className="w-3 h-3 fill-amber-400" />)}
                                     </div>
-                                    <p className="text-gray-400 text-sm leading-relaxed pl-12">{rev.reviewText}</p>
                                 </div>
-                            ))}
-                        </div>
-                    )}
+                                <p className="text-xs text-gray-400 leading-relaxed">{rev.comment}</p>
+                            </div>
+                        ))}
+                    </div>
                 </div>
-
             </div>
         </main>
     );

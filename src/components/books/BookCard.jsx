@@ -1,4 +1,10 @@
+"use client";
+
+import Link from "next/link";
+import { Star, ArrowRight } from "lucide-react";
+
 export default function BookCard({
+    _id, // ডাইনামিক রাউটিং এর জন্য আইডি
     title,
     author,
     description,
@@ -7,67 +13,73 @@ export default function BookCard({
     averageRating,
     totalReviews,
     deliveryFee,
+    status
 }) {
+    // ডাটাবেজের "available" স্ট্যাটাস চেক করা হচ্ছে
+    const isAvailable = status?.toLowerCase() === "available";
+
     return (
-        <div className="group relative rounded-2xl overflow-hidden bg-white shadow-md transition-all duration-300 hover:-translate-y-2 hover:shadow-xl">
+        <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden shadow-md flex flex-col justify-between group hover:border-amber-400/50 transition-all duration-300">
 
-            {/* Glow background effect */}
-            <div className="absolute -inset-1 bg-gradient-to-r from-purple-500 via-pink-500 to-blue-500 opacity-0 group-hover:opacity-30 blur-2xl transition duration-500"></div>
-
-            {/* Image */}
-            <div className="overflow-hidden">
+            {/* ১. ইমেজ এবং স্ট্যাটাস ব্যাজ */}
+            <div className="relative bg-gray-950 p-4 pt-6 flex items-center justify-center h-52 border-b border-gray-800/50">
                 <img
-                    src={image}
+                    src={image || "https://images.unsplash.com/photo-1543002588-bfa74002ed7e"}
                     alt={title}
-                    className="h-52 w-full object-cover transform transition duration-500 group-hover:scale-110"
+                    className="max-h-44 object-contain rounded group-hover:scale-105 transition-transform duration-300"
                 />
+
+                <span className={`absolute top-3 right-3 text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded ${isAvailable
+                    ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                    : "bg-rose-500/10 text-rose-400 border border-rose-500/20"
+                    }`}>
+                    {isAvailable ? "Available" : "Checked Out"}
+                </span>
             </div>
 
-            {/* Content */}
-            <div className="p-5 relative z-10">
-
-                {/* Category Badge */}
-                <span className="inline-block px-3 py-1 text-xs font-medium rounded-full bg-gradient-to-r from-blue-500 to-purple-500 text-white mb-2">
-                    {category}
-                </span>
-
-                {/* Title */}
-                <h3 className="text-lg font-bold mb-1 group-hover:text-purple-600 transition">
-                    {title}
-                </h3>
-
-                <p className="text-sm text-gray-500 mb-1">
-                    By {author}
-                </p>
-
-                <p className="text-sm text-gray-600 line-clamp-2 mb-3">
-                    {description}
-                </p>
-
-                {/* Rating */}
-                <div className="flex items-center justify-between text-sm mb-3">
-                    <span className="text-yellow-500 font-medium">
-                        ⭐ {averageRating}
+            {/* ২. কার্ড বডি কনটেন্ট */}
+            <div className="p-5 flex-1 flex flex-col justify-between space-y-4">
+                <div className="space-y-2">
+                    <span className="text-[11px] font-medium text-amber-400/80 bg-amber-400/5 px-2 py-0.5 rounded border border-amber-400/10">
+                        {category}
                     </span>
-
-                    <span className="text-gray-400">
-                        ({totalReviews} reviews)
-                    </span>
+                    <h3 className="text-lg font-bold font-serif text-gray-100 line-clamp-1 group-hover:text-amber-400 transition-colors">
+                        {title}
+                    </h3>
+                    <p className="text-xs text-gray-400">By <span className="text-gray-300">{author}</span></p>
+                    <p className="text-xs text-gray-500 line-clamp-2 leading-relaxed">
+                        {description}
+                    </p>
                 </div>
 
-                {/* Bottom Row */}
-                <div className="flex items-center justify-between">
+                {/* ৩. রেটিং এবং ডেলিভারি ফি */}
+                <div className="pt-2 border-t border-gray-800/40 flex items-center justify-between">
+                    <div className="flex items-center gap-1.5">
+                        <div className="flex text-amber-400">
+                            {[...Array(5)].map((_, i) => (
+                                <Star
+                                    key={i}
+                                    className={`w-3.5 h-3.5 ${i < Math.round(averageRating || 0) ? "fill-amber-400" : "text-gray-700"}`}
+                                />
+                            ))}
+                        </div>
+                        <span className="text-xs font-bold text-gray-300">{averageRating || "0.0"}</span>
+                        <span className="text-[10px] text-gray-500">({totalReviews || 0})</span>
+                    </div>
 
-                    <span className="text-sm font-medium text-gray-700">
-                        Delivery ৳{deliveryFee}
-                    </span>
-
-                    {/* Status Button */}
-                    <button className="px-3 py-1 text-xs rounded-full bg-green-100 text-green-600 font-semibold hover:bg-green-500 hover:text-white transition">
-                        Available
-                    </button>
-
+                    <div className="text-right">
+                        <p className="text-[10px] text-gray-500 uppercase tracking-wider">Delivery</p>
+                        <p className="text-sm font-bold text-emerald-400">${deliveryFee}</p>
+                    </div>
                 </div>
+
+                {/* 🔗 ৪. ডাইনামিক ডিটেইলস পেজ লিংক বাটন */}
+                <Link
+                    href={`/book/${_id}`} // ক্লিক করলে সরাসরি ডিটেইলস পেজে নিয়ে যাবে
+                    className="w-full mt-2 py-2 bg-gray-950 border border-gray-800 text-gray-200 text-xs font-semibold rounded hover:bg-amber-400 hover:text-gray-900 hover:border-amber-400 flex items-center justify-center gap-1.5 transition-all duration-200"
+                >
+                    View Details <ArrowRight className="w-3.5 h-3.5" />
+                </Link>
             </div>
         </div>
     );
