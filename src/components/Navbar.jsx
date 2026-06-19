@@ -114,7 +114,7 @@ const Navbar = () => {
                             <Link href="/" className={navClass("/")}>Home</Link>
                         </li>
                         <li>
-                            <Link href="/books" className={navClass("/books")}>Browse Books</Link>
+                            <Link href="/books" className={navClass("/browse")}>Browse Books</Link>
                         </li>
                         <li>
                             <Link href="/about" className={navClass("/about")}>About</Link>
@@ -206,7 +206,7 @@ const Navbar = () => {
                                 </Link>
                             </li>
                             <li>
-                                <Link href="/books" className={`block py-2 ${navClass("/books")}`} onClick={() => setIsMenuOpen(false)}>
+                                <Link href="/browse" className={`block py-2 ${navClass("/books")}`} onClick={() => setIsMenuOpen(false)}>
                                     Browse Books
                                 </Link>
                             </li>

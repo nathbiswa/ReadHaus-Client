@@ -3,16 +3,20 @@
 import { useEffect, useState } from "react";
 import BookCard from "./BookCard";
 import { getAllBooks } from "@/lib/action/getbooks";
-// import { getAllBooks } from "@/lib/getAllBooks";
-
 export default function BookSection() {
     const [books, setBooks] = useState([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         const loadBooks = async () => {
-            const data = await getAllBooks();
-            setBooks(data);
+            const response = await getAllBooks();
+
+            // যদি রেসপন্সের ভেতর ডাটা অবজেক্ট আকারে থাকে, তবে response.data সেট হবে
+            if (response && response.data) {
+                setBooks(response.data);
+            } else if (Array.isArray(response)) {
+                setBooks(response); // ব্যাকআপ: যদি সরাসরি অ্যারে আসে
+            }
             setLoading(false);
         };
 
