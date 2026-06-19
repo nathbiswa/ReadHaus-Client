@@ -12,10 +12,10 @@ import {
     TextField,
 } from "@heroui/react";
 import Image from "next/image";
-import Link from "next/link"; // লিংক ইম্পোর্ট করা হয়েছে
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "react-toastify";
-import { motion } from "framer-motion"; // অ্যানিমেশনের জন্য ইম্পোর্ট করা হয়েছে
+import { motion } from "framer-motion";
 
 export default function LoginPage() {
     const router = useRouter();
@@ -26,14 +26,25 @@ export default function LoginPage() {
         const formData = new FormData(e.currentTarget);
         const user = Object.fromEntries(formData.entries());
 
-        const { user: data, error } = await authClient.signIn.email({
+        // 🛠️ 'user: data' পরিবর্তন করে এখানে স্ট্রাকচার ঠিক করা হয়েছে রোল রিডাইরেক্ট ধরার জন্য
+        const { data, error } = await authClient.signIn.email({
             ...user
         });
+
+        // আপনার লগইন পেজের onSubmit-এর ভেতরের অংশ:
         if (!error) {
-            toast.success('Login successful')
-            router.push("/");
-        } else {
-            toast.error('Something went wrong')
+            toast.success('Login successful');
+
+            const userRole = data?.user?.role?.toLowerCase();
+
+            if (userRole === "admin") {
+                router.push("/admin/dashboard");
+            } else if (userRole === "librarian") {
+                router.push("/librarian/dashboard");
+            } else {
+                // 🚀 সাধারণ ইউজার হলে সে তার নিজস্ব ড্যাশবোর্ডে চলে যাবে
+                router.push("/user/dashboard");
+            }
         }
     };
 
@@ -41,14 +52,14 @@ export default function LoginPage() {
         await authClient.signIn.social({
             provider: "google",
         });
+        // 💡 গুগল লগইনের পর এটি ডিফল্ট রুটে যাবে, বাকিটা হোম পেজের সার্ভার কম্পোনেন্ট রিডাইরেক্ট হ্যান্ডেল করবে
         router.push("/");
     };
 
     return (
-        // ব্যাকগ্রাউন্ডে প্রিমিয়াম গ্রাডিয়েন্ট এবং ডেকোরেটিভ গ্লো দেওয়া হয়েছে
         <div className="relative min-h-screen py-12 flex items-center justify-center bg-gradient-to-br from-slate-50 via-gray-100 to-blue-50 dark:from-slate-950 dark:via-gray-900 dark:to-slate-900 px-4 overflow-hidden">
 
-            {/* ব্যাকগ্রাউন্ড ডেকোরেটিভ গ্লোয়িং সার্কেল */}
+            {/* ব্যাকগ্রাউন্ড ডেকোরেティブ গ্লোয়িং সার্কেল */}
             <div className="absolute top-[-10%] right-[-10%] w-[300px] h-[300px] rounded-full bg-blue-400/20 dark:bg-blue-600/10 blur-3xl pointer-events-none" />
             <div className="absolute bottom-[-10%] left-[-10%] w-[300px] h-[300px] rounded-full bg-indigo-400/20 dark:bg-indigo-600/10 blur-3xl pointer-events-none" />
 
