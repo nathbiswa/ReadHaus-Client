@@ -28,8 +28,7 @@ export default function RegisterPage() {
 
         const { user: data, error } = await authClient.signUp.email({
             ...user,
-            image: user.photo,
-            plan: 'free',
+            image: user.photo
         });
 
         if (!error) {

@@ -22,13 +22,15 @@ export default function BookDetailsPage() {
     // Better Auth সেশন রিসিভ করা হচ্ছে
     const { data: session } = authClient.useSession();
     const user = session?.user;
-    console.log("details page user", user);
 
     useEffect(() => {
         const fetchBookDetails = async () => {
             try {
                 setLoading(true);
-                const response = await getSingleBook(id);
+                // 🔒 ইউজার লগইন থাকলে তার ইমেইল getSingleBook-এ পাঠানো হচ্ছে
+                const userEmail = user?.email || "";
+                const response = await getSingleBook(id, userEmail);
+
                 if (response) {
                     setBook(response);
                     setReviews(response.reviews || []);
@@ -40,42 +42,9 @@ export default function BookDetailsPage() {
             }
         };
 
+        // 🔒 ইউজার সেশন লোড হওয়া পর্যন্ত বা লোড হলে ডাটা ফেচ হবে
         if (id) fetchBookDetails();
-    }, [id]);
-
-    const handleRequestDelivery = async () => {
-        if (!user) {
-            toast.error("Please login first to request delivery!");
-            router.push("/login");
-            return;
-        }
-
-        const currentStatus = book?.status?.trim().toLowerCase();
-        if (currentStatus !== "published" && currentStatus !== "available") {
-            toast.error("This book is currently checked out or unavailable.");
-            return;
-        }
-
-        toast.success("Welcome to Stripe Hosted Payment Page...");
-
-        try {
-            // 🚀 Next.js API Routes এর সাথে মিল রেখে পাথ আপডেট করা হয়েছে
-            const paymentResponse = await axios.post("/api/payments", {
-                bookId: book._id,
-                title: book.title,
-                deliveryFee: book.deliveryFee,
-                userEmail: user.email,
-                userName: user.name
-            });
-
-            if (paymentResponse.data.url) {
-                window.location.href = paymentResponse.data.url;
-            }
-        } catch (err) {
-            console.error("Stripe redirection failed", err);
-            toast.error("Failed to initiate payment. Please try again.");
-        }
-    };
+    }, [id, user?.email]);
 
     const handleReviewSubmit = async (e) => {
         e.preventDefault();
@@ -147,7 +116,6 @@ export default function BookDetailsPage() {
                             <p className="text-gray-400">By <span className="text-gray-200 font-medium text-lg">{book.author}</span></p>
 
                             <div className="flex flex-wrap items-center gap-4">
-                                {/* রেটিং সেকশন */}
                                 <div className="flex items-center gap-2 bg-gray-950/40 px-3 py-1.5 rounded-lg border border-gray-800/60">
                                     <div className="flex text-amber-400">
                                         {[...Array(5)].map((_, i) => (
@@ -158,7 +126,6 @@ export default function BookDetailsPage() {
                                     <span className="text-xs text-gray-500">({book.totalReviews || 0} reviews)</span>
                                 </div>
 
-                                {/* 💰 ডাইনামিক প্রাইস/ডেলিভারি ফি সেকশন (নতুন যোগ করা হয়েছে) */}
                                 <div className="flex items-center gap-1.5 bg-amber-400/10 px-3 py-1.5 rounded-lg border border-amber-400/20 text-amber-400 font-bold text-sm">
                                     <DollarSign className="w-4 h-4" />
                                     <span>Delivery Fee: ${book.deliveryFee || 0}</span>
@@ -169,24 +136,67 @@ export default function BookDetailsPage() {
                             <p className="text-gray-300 text-sm leading-relaxed bg-gray-950/30 p-4 rounded-xl border border-gray-800/40">{book.description}</p>
                         </div>
 
-                        <div className="flex flex-col sm:flex-row gap-4 pt-4">
-                            <button onClick={() => alert(`"${book.title}" added to Wishlist!`)} className="flex-1 py-3.5 px-6 bg-gray-950 border border-gray-800 text-gray-300 font-bold rounded-xl text-xs uppercase flex items-center justify-center gap-2 hover:text-rose-400 hover:border-rose-500/40 transition-all">
+                        {/* 🛠️ ফিক্সড ও ক্লিন বাটন এরিয়া (onClick ভিত্তিক স্ট্রাইপ ট্রিগার) */}
+                        <div className="flex flex-col sm:flex-row gap-4 pt-4 w-full">
+                            <button
+                                type="button"
+                                onClick={() => alert(`"${book.title}" added to Wishlist!`)}
+                                className="flex-1 py-3.5 px-6 bg-gray-950 border border-gray-800 text-gray-300 font-bold rounded-xl text-xs uppercase flex items-center justify-center gap-2 hover:text-rose-400 hover:border-rose-500/40 transition-all"
+                            >
                                 <Heart className="w-4 h-4" /> Wishlist
                             </button>
 
-                            {isBookAvailable ? (
-                                <form action={`/api/payments`} method="POST">
-                                    <button type="submit" onClick={handleRequestDelivery} className="flex-[2] py-3.5 px-6 bg-amber-400 text-gray-900 hover:bg-amber-500 font-bold rounded-xl uppercase text-xs flex items-center justify-center gap-2 transition-all shadow-lg shadow-amber-400/10">
-                                        <ShieldCheck className="w-4 h-4" /> Request Delivery & Pay
+                            <div className="flex-[2] flex">
+                                {book?.isPurchased ? (
+                                    // ১. ইউজার অলরেডি কিনে থাকলে বাটন সম্পূর্ণ লক/ডিজেবল থাকবে
+                                    <button
+                                        type="button"
+                                        disabled
+                                        className="w-full py-3.5 px-6 bg-gray-800 text-gray-500 border border-gray-700/60 font-bold rounded-xl uppercase text-xs flex items-center justify-center gap-2 cursor-not-allowed"
+                                    >
+                                        <ShieldCheck className="w-4 h-4" /> Already Requested / Paid
                                     </button>
-                                </form>
+                                ) : isBookAvailable ? (
+                                    // ২. ইউজার যদি না কিনে থাকে এবং বই এভেইলেবল থাকে, তবে এই বাটনের মাধ্যমে স্ট্রাইপ কল হবে
+                                    <form action="/api/payments" method="POST" className="w-full">
+                                        {/* 💡 এখানে সরাসরি সংখ্যা পাস হচ্ছে */}
+                                        <input type="hidden" name="price" value={book.price || book.deliveryFee || 0} />
 
-                            ) : (
-                                <button disabled className="flex-[2] py-3.5 px-6 bg-gray-800 text-gray-500 border border-gray-700/60 font-bold rounded-xl uppercase text-xs flex items-center justify-center gap-2 cursor-not-allowed">
-                                    <ShieldCheck className="w-4 h-4" /> Unavailable ({book.status})
-                                </button>
-                            )}
+                                        {/* 🚀 নতুন যুক্ত করা স্ট্যাটাস ইনপুট ফিল্ড */}
+                                        <input type="hidden" name="status" value="pending" />
+
+                                        {/* মেটাডাটা ও ট্র্যাকিংয়ের জন্য বাকি ইনফো */}
+                                        <input type="hidden" name="bookId" value={book._id || ""} />
+                                        <input type="hidden" name="title" value={book.title || ""} />
+                                        <input type="hidden" name="userEmail" value={user?.email || ""} />
+                                        <input type="hidden" name="userName" value={user?.name || ""} />
+
+                                        <button
+                                            type="submit"
+                                            className="w-full py-3.5 px-6 bg-amber-400 text-gray-900 hover:bg-amber-500 font-bold rounded-xl uppercase text-xs flex items-center justify-center gap-2 transition-all shadow-lg shadow-amber-400/10"
+                                        >
+                                            <ShieldCheck className="w-4 h-4" /> Request Delivery & Pay
+                                        </button>
+                                    </form>
+
+                                ) : (
+                                    // ৩. বই যদি এভেইলেবল না থাকে (Checked Out থাকে)
+                                    <button
+                                        type="button"
+                                        disabled
+                                        className="w-full py-3.5 px-6 bg-gray-800 text-gray-500 border border-gray-700/60 font-bold rounded-xl uppercase text-xs flex items-center justify-center gap-2 cursor-not-allowed"
+                                    >
+                                        <ShieldCheck className="w-4 h-4" /> Unavailable ({book.status})
+                                    </button>
+                                )}
+                            </div>
                         </div>
+
+                        {book?.isPurchased && (
+                            <p className="text-xs text-center text-emerald-400 font-medium">
+                                You have already requested this book. Please track delivery in your dashboard.
+                            </p>
+                        )}
                     </div>
                 </div>
 

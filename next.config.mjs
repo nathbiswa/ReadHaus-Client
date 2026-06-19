@@ -9,6 +9,7 @@ const nextConfig = {
       },
     ],
   },
+
   // reactCompiler: true,
   // experimental: {
   //   serverComponentsExternalPackages: ['@better-auth/kysely-adapter'],
@@ -16,3 +17,5 @@ const nextConfig = {
 };
 
 export default nextConfig;
+
+

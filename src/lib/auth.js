@@ -23,10 +23,7 @@ export const auth = betterAuth({
         additionalFields: {
             role: {
                 defaultValue: "readers",
-            },
-            plan: {
-                defaultValue: "free",
-            },
+            }
         },
     },
 
