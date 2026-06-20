@@ -47,9 +47,9 @@ const Navbar = () => {
     };
 
     // ড্যাশবোর্ড পেজগুলোতে নেভবার হাইড রাখার লজিক
-    if (pathname.includes("dashboard")) {
-        return null;
-    }
+    // if (pathname.includes("dashboard")) {
+    //     return null;
+    // }
 
     // সাইন আউট হ্যান্ডলার এবং রিডাইরেকশন
     const handleSignOut = async () => {
