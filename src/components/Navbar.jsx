@@ -169,7 +169,7 @@ const Navbar = () => {
 
                                         <Dropdown.Menu onAction={(key) => console.log(`Selected: ${key}`)}>
                                             <Dropdown.Item id="dashboard" textValue="Dashboard">
-                                                <Link className="flex items-center gap-2 w-full" href={`/dashboard/${user?.role || "user"}`}>
+                                                <Link className="flex items-center gap-2 w-full" href={`/dashboard/${user?.role || "user"}/overview`}>
                                                     <MdDashboard className="text-lg" />
                                                     <Label className="cursor-pointer">Dashboard ({user?.role || "user"})</Label>
                                                 </Link>
@@ -221,8 +221,7 @@ const Navbar = () => {
                                 {user ? (
                                     <>
                                         <Link
-                                            href={`/dashboard/${user?.role || "user"}`}
-                                            className={`block py-2 ${navClass(`/dashboard/${user?.role}`)}`}
+                                            href={`/dashboard/${user?.role || "user"}/overview`}
                                             onClick={() => setIsMenuOpen(false)}
                                         >
                                             Dashboard ({user?.role})

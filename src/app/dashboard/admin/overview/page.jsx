@@ -11,18 +11,21 @@ export default function OverviewPage() {
     const [stats, setStats] = useState(null);
     const [loading, setLoading] = useState(true);
 
-    // 🚀 এই useEffect এর ভেতরেই ব্যাকএন্ডের ডাটা কল করা হয়েছে
+    // 🚀 লাইভ ডাটা ফেচ করার ইফেক্ট হুক
     useEffect(() => {
         async function fetchLiveStats() {
             try {
-                const res = await fetch("http://localhost:5000/api/admin/dashboard-stats");
+                // ক্যাশ এড়ানোর জন্য টাইমস্ট্যাম্প বা নো-ক্যাশ অপশন যোগ করা হয়েছে
+                const res = await fetch("http://localhost:5000/api/admin/dashboard-stats", {
+                    cache: "no-store"
+                });
 
                 if (res.ok) {
                     const data = await res.json();
                     setStats(data);
                 }
             } catch (error) {
-                console.error("Express API থেকে ডাটা ফেচ করতে সমস্যা হয়েছে:", error);
+                console.error("Express API থেকে ডাটা ফেচ করতে সমস্যা হয়েছে:", error);
             } finally {
                 setLoading(false);
             }
@@ -31,7 +34,7 @@ export default function OverviewPage() {
         fetchLiveStats();
     }, []);
 
-    // ডাটা লোড হওয়ার সময় স্পিনার দেখাবে
+    // ডাটা লোড হওয়ার সময় স্পিনার দেখাবে
     if (loading) {
         return (
             <div className="h-[60vh] flex items-center justify-center">
@@ -50,7 +53,7 @@ export default function OverviewPage() {
             {/* 📊 ৪টি লাইভ ডাটা কার্ড */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-8">
 
-                {/* Total Users */}
+                {/* Total Users (সরাসরি stats.totalUsers রিড করবে) */}
                 <Card className="border-none bg-white shadow-[0_2px_8px_-3px_rgba(0,0,0,0.05)] rounded-2xl">
                     <Card.Content className="p-6 flex flex-row items-center gap-5">
                         <div className="w-14 h-14 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center shrink-0">
@@ -58,7 +61,9 @@ export default function OverviewPage() {
                         </div>
                         <div>
                             <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Total Users</p>
-                            <h2 className="text-3xl font-bold text-slate-800 mt-1">{stats?.totalUsers || 0}</h2>
+                            <h2 className="text-3xl font-bold text-slate-800 mt-1">
+                                {stats?.totalUsers !== undefined ? stats.totalUsers : 0}
+                            </h2>
                         </div>
                     </Card.Content>
                 </Card>
@@ -123,7 +128,7 @@ export default function OverviewPage() {
                                 </PieChart>
                             </ResponsiveContainer>
                         ) : (
-                            <p className="text-sm text-slate-400">কোনো ক্যাটাগরি ডাটা পাওয়া যায়নি</p>
+                            <p className="text-sm text-slate-400">কোনো ক্যাটাগরি ডাটা পাওয়া যায়নি</p>
                         )}
                     </div>
                 </Card.Content>

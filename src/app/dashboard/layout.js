@@ -1,17 +1,19 @@
 import DashboardSidebar from "@/components/dashboard/DashboardSidebar";
 import Footer from "@/components/Footer";
+import { ToastContainer } from "react-toastify";
 
 export default function DashboardLayout({ children }) {
     return (
-        <div className="flex h-screen bg-background">
+        <div className="flex bg-background">
             <div className="flex flex-1 overflow-hidden">
-                <DashboardSidebar />
+                <div className="min-h-screen">
+                    <DashboardSidebar />
+                </div>
                 <div className="flex-1 overflow-y-hidden">
-                    <main className="m-4">
-
+                    <main className="min-h-screen">
                         {children}
                     </main>
-                    <Footer />
+                    <ToastContainer />
                 </div>
             </div>
         </div>

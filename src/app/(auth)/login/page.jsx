@@ -38,9 +38,9 @@ export default function LoginPage() {
             const userRole = data?.user?.role?.toLowerCase();
 
             if (userRole === "admin") {
-                router.push("/admin/dashboard");
+                router.push("/dashboard/admin/overview");
             } else if (userRole === "librarian") {
-                router.push("/librarian/dashboard");
+                router.push("/dashboard/librarian/overview");
             } else {
                 // 🚀 সাধারণ ইউজার হলে সে তার নিজস্ব ড্যাশবোর্ডে চলে যাবে
                 router.push("/user/dashboard");
