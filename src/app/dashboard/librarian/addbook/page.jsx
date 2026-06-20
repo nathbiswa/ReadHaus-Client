@@ -24,8 +24,13 @@ import {
 } from "lucide-react";
 import { imageUpload } from "@/lib/action/imageUpload";
 import { librarianAddBook } from "@/lib/api/addBooks";
+import { authClient } from "@/lib/auth-client";
 
 export default function AddBookPage() {
+    const { data: session } = authClient.useSession();
+    const user = session?.user;
+
+    const name = user?.name;
 
     // ক্যাটাগরির ডাটা লিস্ট
     const categories = [
@@ -42,11 +47,14 @@ export default function AddBookPage() {
 
         const formData = new FormData(e.target);
         const data = Object.fromEntries(formData.entries());
+        console.log("data", data);
         const image = await imageUpload(data.image);
+        console.log("image", image);
 
         const bookData = {
             ...data,
-            image: image.url
+            image: image.url,
+            librarian: name
         }
 
         const result = await librarianAddBook(bookData);
@@ -185,7 +193,7 @@ export default function AddBookPage() {
 
                         {/* Image Upload Area Box */}
                         {/* ৬. ইমেজ আপলোড করার মডার্ন বক্স */}
-                        <div className="flex flex-col gap-2 w-full">
+                        {/* <div className="flex flex-col gap-2 w-full">
                             <Label className="text-xs uppercase tracking-wider font-bold text-slate-600">Cover Image</Label>
 
                             <div className="border-2 border-dashed border-indigo-100 rounded-2xl p-8 flex flex-col items-center justify-center gap-3 bg-indigo-50/10 hover:bg-indigo-50/30 hover:border-indigo-300 transition-all cursor-pointer min-h-[180px] group shadow-inner">
@@ -200,6 +208,10 @@ export default function AddBookPage() {
                                     <p className="text-xs text-slate-400 mt-1">Supports PNG, JPG (Max size 5MB)</p>
                                 </div>
                             </div>
+                        </div> */}
+                        <div>
+                            <label htmlFor="image">Upload Image</label>
+                            <input type="file" name="image" id="image" />
                         </div>
 
                         {/* Submit Button */}
