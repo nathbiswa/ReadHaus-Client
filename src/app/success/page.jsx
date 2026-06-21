@@ -4,7 +4,7 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 
 export default async function Success({ searchParams }) {
-    // 🔒 ফিক্স ১: searchParams-কে প্রথমে সেফলি এওয়েট করে অবজেক্টে নেওয়া হয়েছে
+    // searchParams-কে সেফলি এওয়েট করা হয়েছে
     const params = await searchParams;
     const session_id = params?.session_id;
 
@@ -13,7 +13,7 @@ export default async function Success({ searchParams }) {
     }
 
     try {
-        // ২. স্ট্রাইপ থেকে সেশন ডাটা রিট্রিভ করা
+        // স্ট্রাইপ থেকে সেশন ডাটা রিট্রিভ করা
         const session = await stripe.checkout.sessions.retrieve(session_id, {
             expand: ['line_items', 'payment_intent']
         });
@@ -27,18 +27,19 @@ export default async function Success({ searchParams }) {
             return redirect('/');
         }
 
-
-        console.log('From book data', metadata);
+        console.log('From book data metadata:', metadata);
 
         if (status === 'complete') {
-            // 🔒 ফিক্স ২: মঙ্গোডিবি বা সার্ভার অ্যাকশনের এরর হ্যান্ডেল করার জন্য আলাদা ট্রাই-ক্যাচ
             try {
-                if (metadata && Object.keys(metadata).length > 0) {
-                    await getDeliveryData({ ...metadata, sessionId: session_id, status: session?.status });
-                }
+
+                await getDeliveryData({
+                    ...metadata,
+                    sessionId: session_id,
+                    status: "complete"
+                });
             } catch (dbError) {
-                // ডাটাবেজ একশনে কোনো ইন্টারনাল এরর হলেও যেন আপনার স্ক্রিন সাদা বা ক্র্যাশ না হয়
-                console.error("Database action failed but payment was completed safely:", dbError);
+
+                console.error("Database action failed but payment was completed safely:", dbError.message);
             }
 
             return (
@@ -101,7 +102,6 @@ export default async function Success({ searchParams }) {
         }
     } catch (stripeError) {
         console.error("Stripe Session Retrieve Global Error:", stripeError);
-        // স্ট্রাইপ কি বা সেশনে বড় কোনো সমস্যা হলে সরাসরি হোমে রিডাইরেক্ট করবে, স্ক্রিন ভাঙবে না
         return redirect('/');
     }
 }

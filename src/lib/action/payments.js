@@ -1,17 +1,13 @@
-'use server'
+"use server";
 
+export async function getDeliveryData(dataObject) {
+    const { sessionId, status } = dataObject;
 
-const baseBackednUrl = process.env.NEXT_PUBLIC_BASE_URL;
-
-export const getDeliveryData = async (data) => {
-    const res = await fetch(`${baseBackednUrl}/deliveries`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(data)
+    const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/deliveries/update-status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId, status })
     });
 
-    const resData = await res.json();
-    return resData;
+    return await res.json();
 }

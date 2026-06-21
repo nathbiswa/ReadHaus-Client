@@ -141,7 +141,7 @@ export default function BookApprovalQueue() {
             {/* 💡 Empty State হ্যান্ডেল করার জন্য টেবিলের বাইরে কাস্টম ডিজাইন */}
             {books.length === 0 && (
                 <div className="text-center text-slate-400 py-12 bg-white rounded-b-2xl border-t border-slate-100 shadow-sm">
-                    কোনো নতুন বই অনুমোদনের অপেক্ষায় নেই।
+                    No new books are awaiting approval.
                 </div>
             )}
         </div>

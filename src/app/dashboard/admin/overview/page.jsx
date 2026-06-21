@@ -44,10 +44,10 @@ export default function OverviewPage() {
     }
 
     return (
-        <div>
+        <div className="p-6 bg-slate-50/50 min-h-screen">
             <div className="mb-8">
                 <h1 className="text-3xl font-bold text-[#1e293b] tracking-tight">Admin Dashboard</h1>
-                <p className="text-slate-500 text-sm mt-1">প্ল্যাটফর্মের সব লাইভ ডাটা ও অ্যানালিটিক্স।</p>
+                <p className="text-slate-500 text-sm mt-1">All live data and analytics on the platform.</p>
             </div>
 
             {/* 📊 ৪টি লাইভ ডাটা কার্ড */}
@@ -128,7 +128,7 @@ export default function OverviewPage() {
                                 </PieChart>
                             </ResponsiveContainer>
                         ) : (
-                            <p className="text-sm text-slate-400">কোনো ক্যাটাগরি ডাটা পাওয়া যায়নি</p>
+                            <p className="text-sm text-slate-400">No category data found.</p>
                         )}
                     </div>
                 </Card.Content>

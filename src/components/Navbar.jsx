@@ -21,7 +21,7 @@ const Navbar = () => {
     const { data: session } = authClient.useSession();
     const user = session?.user;
 
-    // ব্রাউজার লোড হওয়ার সময় আগের সেভ করা থিম চেক করা
+    // ব্রাউজার লোড হওয়ার সময় আগের সেভ করা থিম চেক করা
     useEffect(() => {
         const savedTheme = localStorage.getItem("theme");
         if (savedTheme === "dark" || (!savedTheme && window.matchMedia("(prefers-color-scheme: dark)").matches)) {
@@ -69,9 +69,10 @@ const Navbar = () => {
             : "text-gray-600 hover:text-blue-600 dark:text-gray-300 dark:hover:text-blue-400";
 
     return (
-        <div>
+        // এখানে sticky top-0 এবং z-50 যোগ করা হয়েছে যেন স্ক্রোল করার সময় নেভবারটি ভেসে থাকে
+        <div className="sticky top-0 z-50">
             {/* মেইন নেভবার */}
-            <nav className="sticky top-0 z-40 w-full border-b border-separator bg-background/70 backdrop-blur-lg">
+            <nav className="w-full border-b border-separator bg-background/70 backdrop-blur-lg">
                 <header className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4">
 
                     {/* লোগো এবং সাইট নেম */}
@@ -217,7 +218,7 @@ const Navbar = () => {
                                 </Link>
                             </li>
 
-                            {/* মোবাইল ভিউতে সেশন অনুযায়ী ডাইনামিক বাটন */}
+                            {/* মোবাইল ভিউতে সেশন অনুযায়ী ডাইনামিক বাটন */}
                             <li className="mt-2 pt-4 border-t border-separator flex flex-col gap-2">
                                 {user ? (
                                     <>
