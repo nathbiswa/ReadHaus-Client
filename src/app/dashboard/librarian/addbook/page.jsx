@@ -25,6 +25,7 @@ import {
 import { imageUpload } from "@/lib/action/imageUpload";
 import { librarianAddBook } from "@/lib/api/addBooks";
 import { authClient } from "@/lib/auth-client";
+import { toast } from "react-toastify";
 
 export default function AddBookPage() {
     const { data: session } = authClient.useSession();
@@ -45,21 +46,57 @@ export default function AddBookPage() {
     const handleSubmit = async (e) => {
         e.preventDefault();
 
+        // ১. ফর্ম ডাটা অবজেক্ট তৈরি
         const formData = new FormData(e.target);
-        const data = Object.fromEntries(formData.entries());
-        console.log("data", data);
-        const image = await imageUpload(data.image);
-        console.log("image", image);
 
-        const bookData = {
-            ...data,
-            image: image.url,
-            librarian: name
+        // ২. সাধারণ টেক্সট ডাটা আলাদা করা (title, author, description, category, deliveryFee)
+        const textData = Object.fromEntries(formData.entries());
+        console.log("Form Text Data:", textData);
+
+        // ৩. 🛠️ ফিক্স ১: সরাসরি formData থেকে আসল ফাইল অবজেক্টটি ধরুন (নামের ইনপুট অনুযায়ী)
+        const imageFile = formData.get("image");
+
+        if (!imageFile || imageFile.size === 0) {
+            alert("Please select a valid cover image!");
+            return;
         }
 
-        const result = await librarianAddBook(bookData);
-        console.log('Books Added:', result);
+        try {
+            // ৪. আসল ফাইল অবজেক্টটি আপলোড ফাংশনে পাঠানো হলো
+            const uploadedImageUrl = await imageUpload(imageFile);
+            console.log("Uploaded Image URL:", uploadedImageUrl);
 
+            if (!uploadedImageUrl) {
+                alert("Image upload failed! Please check your ImgBB API Key or network.");
+                return;
+            }
+
+            // ৫. 🛠️ ফিক্স ২: ব্যাকএন্ডের জন্য ফাইনাল অবজেক্ট তৈরি
+            const bookData = {
+                title: textData.title,
+                author: textData.author,
+                description: textData.description,
+                category: textData.category,
+                deliveryFee: textData.deliveryFee, // ব্যাকএন্ড এটাকে parseFloat করবে
+                image: uploadedImageUrl, // সরাসরি স্ট্রিং লিংকটি বসে যাবে
+                librarian: name || "Unknown Librarian" // আপনার সেশনের নাম
+            };
+
+            // ৬. ব্যাকএন্ড এপিআই-তে ডাটা পাঠানো
+            const result = await librarianAddBook(bookData);
+            console.log('Books Added Successfully:', result);
+
+            if (result?.success) {
+                toast.success("Book added for approval successfully!");
+                e.target.reset(); // ফর্মের সব ইনপুট খালি করে দেবে
+            } else {
+                toast.error("Failed to add book to database!");
+            }
+
+        } catch (error) {
+            console.error("Error during submission:", error);
+            toast.error("Something went wrong while adding the book.");
+        }
     };
 
     return (
