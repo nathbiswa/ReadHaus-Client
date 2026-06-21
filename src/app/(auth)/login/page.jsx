@@ -43,7 +43,7 @@ export default function LoginPage() {
                 router.push("/dashboard/librarian/overview");
             } else {
                 // 🚀 সাধারণ ইউজার হলে সে তার নিজস্ব ড্যাশবোর্ডে চলে যাবে
-                router.push("/user/dashboard");
+                router.push("/");
             }
         }
     };

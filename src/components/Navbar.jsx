@@ -101,6 +101,7 @@ const Navbar = () => {
                                     loading="eager"
                                     src="/logo.png"
                                     alt="logo"
+                                    style={{ width: 'auto', height: 'auto' }}
                                     className="object-contain"
                                 />
                                 <p className="font-bold text-xl text-blue-600">ReadHaus</p>
@@ -221,7 +222,7 @@ const Navbar = () => {
                                 {user ? (
                                     <>
                                         <Link
-                                            href={`/dashboard/${user?.role || "user"}/overview`}
+                                            href={`/dashboard/${user?.role || "readers"}/overview`}
                                             onClick={() => setIsMenuOpen(false)}
                                         >
                                             Dashboard ({user?.role})

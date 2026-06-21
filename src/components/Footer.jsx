@@ -20,6 +20,7 @@ export default function Footer() {
                             alt="ReadHaus Logo"
                             width={90}
                             height={90}
+                            style={{ width: 'auto', height: 'auto' }}
                             className="object-contain hover:scale-110 transition"
                         />
 

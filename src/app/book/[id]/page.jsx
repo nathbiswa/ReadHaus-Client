@@ -46,12 +46,88 @@ export default function BookDetailsPage() {
         if (id) fetchBookDetails();
     }, [id, user?.email]);
 
+    // উইশলিস্ট হ্যান্ডলার (লগইন এবং রিডার্স রোল চেক)
+    const handleWishlistClick = async () => {
+        if (!user) {
+            toast.info("Please login to add this book to your wishlist!");
+            router.push("/login");
+            return;
+        }
+
+        // 🔒 চেক করা হচ্ছে ইউজারের রোল readers কিনা
+        if (user?.role !== "readers") {
+            toast.error("Only users with 'readers' role can add to wishlist!");
+            return;
+        }
+
+        try {
+            // 📝 ব্যাকএন্ডে পাঠানোর জন্য ডাটা অবজেক্ট তৈরি
+            const wishlistData = {
+                userEmail: user.email,
+                bookId: book._id || id,
+                title: book.title,
+                author: book.author,
+                image: book.image,
+                category: book.category,
+            };
+
+            // 🚀 axios এর বদলে native fetch ব্যবহার করা হলো
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/wishlist`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify(wishlistData), // ডাটাকে স্ট্রিং-এ কনভার্ট করা হলো
+            });
+
+            // fetch-এর রেসপন্সকে জেসন অবজেক্টে রূপান্তর
+            const data = await res.json();
+
+            // যদি রেসপন্স সফল (status 200-299) হয়
+            if (res.ok && data.success) {
+                toast.success("Added to wishlist successfully!");
+            } else {
+                // ব্যাকএন্ড থেকে পাঠানো নির্দিষ্ট এরর মেসেজ (যেমন: "ইতিমধ্যেই উইশলিস্টে আছে") দেখাবে
+                toast.error(data.message || "Failed to add to wishlist");
+            }
+
+        } catch (error) {
+            console.error("Wishlist error:", error);
+            toast.error("Network error! Something went wrong.");
+        }
+    };
+
+    // পার্চেস/পেমেন্ট ফর্ম সাবমিট হ্যান্ডলার (লগইন এবং রিডার্স রোল চেক)
+    const handlePurchaseSubmit = (e) => {
+        if (!user) {
+            e.preventDefault(); // ফর্মের অ্যাকশন বা সাবমিট হওয়া বন্ধ করবে
+            toast.info("Please login to request delivery and pay!");
+            router.push("/login");
+            return;
+        }
+
+        // 🔒 চেক করা হচ্ছে ইউজারের রোল readers কিনা
+        if (user?.role !== "readers") {
+            e.preventDefault(); // ফর্ম সাবমিট হওয়া বন্ধ করবে
+            toast.error("Only users with 'readers' role can purchase books!");
+            return;
+        }
+    };
+
+    // রিভিউ সাবমিট হ্যান্ডলার (লগইন এবং পার্চেস স্ট্যাটাস চেক)
     const handleReviewSubmit = async (e) => {
         e.preventDefault();
         if (!newComment.trim()) return;
 
         if (!user) {
             toast.error("Please login first to write a review!");
+            router.push("/login");
+            return;
+        }
+
+        // 🔒 ইউজার বইটি পার্চেস না করলে রিভিউ দিতে পারবে না
+        if (!book?.isPurchased) {
+            toast.error("You must purchase this book before leaving a review!");
             return;
         }
 
@@ -136,11 +212,13 @@ export default function BookDetailsPage() {
                             <p className="text-gray-300 text-sm leading-relaxed bg-gray-950/30 p-4 rounded-xl border border-gray-800/40">{book.description}</p>
                         </div>
 
-                        {/* 🛠️ ফিক্সড ও ক্লিন বাটন এরিয়া (onClick ভিত্তিক স্ট্রাইপ ট্রিগার) */}
+                        {/* 🛠️ বাটন এরিয়া */}
                         <div className="flex flex-col sm:flex-row gap-4 pt-4 w-full">
+
+                            {/* Wishlist Button */}
                             <button
                                 type="button"
-                                onClick={() => alert(`"${book.title}" added to Wishlist!`)}
+                                onClick={handleWishlistClick}
                                 className="flex-1 py-3.5 px-6 bg-gray-950 border border-gray-800 text-gray-300 font-bold rounded-xl text-xs uppercase flex items-center justify-center gap-2 hover:text-rose-400 hover:border-rose-500/40 transition-all"
                             >
                                 <Heart className="w-4 h-4" /> Wishlist
@@ -157,19 +235,15 @@ export default function BookDetailsPage() {
                                         <ShieldCheck className="w-4 h-4" /> Already Requested / Paid
                                     </button>
                                 ) : isBookAvailable ? (
-                                    // ২. ইউজার যদি না কিনে থাকে এবং বই এভেইলেবল থাকে, তবে এই বাটনের মাধ্যমে স্ট্রাইপ কল হবে
-                                    <form action="/api/payments" method="POST" className="w-full">
-                                        {/* 💡 এখানে সরাসরি সংখ্যা পাস হচ্ছে */}
+                                    // ২. ইউজার যদি না কিনে থাকে এবং বই এভেইলেবল থাকে
+                                    <form action="/api/payments" method="POST" onSubmit={handlePurchaseSubmit} className="w-full">
                                         <input type="hidden" name="price" value={book.price || book.deliveryFee || 0} />
-
-                                        {/* 🚀 নতুন যুক্ত করা স্ট্যাটাস ইনপুট ফিল্ড */}
                                         <input type="hidden" name="status" value="pending" />
-
-                                        {/* মেটাডাটা ও ট্র্যাকিংয়ের জন্য বাকি ইনফো */}
                                         <input type="hidden" name="bookId" value={book._id || ""} />
                                         <input type="hidden" name="title" value={book.title || ""} />
                                         <input type="hidden" name="userEmail" value={user?.email || ""} />
                                         <input type="hidden" name="userName" value={user?.name || ""} />
+                                        <input type="hidden" name="userId" value={user?._id || ""} />
 
                                         <button
                                             type="submit"
@@ -178,7 +252,6 @@ export default function BookDetailsPage() {
                                             <ShieldCheck className="w-4 h-4" /> Request Delivery & Pay
                                         </button>
                                     </form>
-
                                 ) : (
                                     // ৩. বই যদি এভেইলেবল না থাকে (Checked Out থাকে)
                                     <button
@@ -209,14 +282,37 @@ export default function BookDetailsPage() {
                     <form onSubmit={handleReviewSubmit} className="bg-gray-950 border border-gray-800/80 p-5 rounded-2xl space-y-4">
                         <h4 className="text-sm font-semibold text-gray-300">Write a Review</h4>
                         <div className="flex flex-wrap items-center gap-4">
-                            <select value={newRating} onChange={(e) => setNewRating(Number(e.target.value))} className="bg-gray-900 border border-gray-800 rounded-lg px-3 py-1 text-sm text-amber-400 font-bold">
+                            <select
+                                value={newRating}
+                                onChange={(e) => setNewRating(Number(e.target.value))}
+                                disabled={!book?.isPurchased}
+                                className="bg-gray-900 border border-gray-800 rounded-lg px-3 py-1 text-sm text-amber-400 font-bold disabled:opacity-50"
+                            >
                                 {[5, 4, 3, 2, 1].map(num => <option key={num} value={num}>{num} Stars</option>)}
                             </select>
                         </div>
                         <div className="relative">
-                            <textarea rows="3" value={newComment} onChange={(e) => setNewComment(e.target.value)} placeholder="Share your thoughts..." className="w-full bg-gray-900 border border-gray-800 rounded-xl p-4 text-sm text-gray-100 focus:outline-none" />
-                            <button type="submit" className="absolute bottom-4 right-4 bg-amber-400 text-gray-900 p-2 rounded-xl hover:bg-amber-500"><Send className="w-4 h-4" /></button>
+                            <textarea
+                                rows="3"
+                                value={newComment}
+                                onChange={(e) => setNewComment(e.target.value)}
+                                disabled={!book?.isPurchased}
+                                placeholder={book?.isPurchased ? "Share your thoughts..." : "You must purchase this book to write a review."}
+                                className="w-full bg-gray-900 border border-gray-800 rounded-xl p-4 text-sm text-gray-100 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+                            />
+                            <button
+                                type="submit"
+                                disabled={!book?.isPurchased}
+                                className="absolute bottom-4 right-4 bg-amber-400 text-gray-900 p-2 rounded-xl hover:bg-amber-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                <Send className="w-4 h-4" />
+                            </button>
                         </div>
+                        {!book?.isPurchased && (
+                            <p className="text-xs text-rose-400 font-medium pt-1">
+                                * Only verified buyers of this book can submit a review.
+                            </p>
+                        )}
                     </form>
 
                     <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2">

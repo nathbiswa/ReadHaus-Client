@@ -15,7 +15,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "react-toastify";
-import { motion } from "framer-motion"; // অ্যানিমেশনের জন্য ইম্পোর্ট করা হয়েছে
+import { motion } from "framer-motion"; // অ্যানিমেশনের জন্য ইম্পোর্ট করা হয়েছে
 
 export default function RegisterPage() {
     const router = useRouter();
@@ -24,18 +24,27 @@ export default function RegisterPage() {
         e.preventDefault();
 
         const formData = new FormData(e.currentTarget);
-        const user = Object.fromEntries(formData.entries());
+        const rawUser = Object.fromEntries(formData.entries());
+
+        // 🔒 পাসওয়ার্ড এবং কনফার্ম পাসওয়ার্ড মিলছে কিনা চেক (নিরাপত্তার জন্য)
+        if (rawUser.password !== rawUser.confirmPassword) {
+            toast.error("Passwords do not match!");
+            return;
+        }
+
+        // 🛠️ লজিক ফিক্স: Better Auth এর জন্য ডাটা ফিল্টার করা হলো যেন অপ্রয়োজনীয় ফিল্ড না যায়
+        const { confirmPassword, photo, ...cleanUserData } = rawUser;
 
         const { user: data, error } = await authClient.signUp.email({
-            ...user,
-            image: user.photo
+            ...cleanUserData,
+            image: photo || "" // photo কে image হিসেবে পাঠানো হচ্ছে
         });
 
         if (!error) {
-            toast.success('Register successful')
+            toast.success('Register successful');
             router.push("/");
         } else {
-            toast.error('Something went wrong')
+            toast.error(error.message || 'Something went wrong');
         }
     };
 
@@ -47,10 +56,10 @@ export default function RegisterPage() {
     };
 
     return (
-        // ব্যাকগ্রাউন্ডে প্রিমিয়াম গ্রাডিয়েন্ট অরবিটাল লুক দেওয়া হয়েছে
+        // ব্যাকগ্রাউন্ডে প্রিমিয়াম গ্রাডিয়েন্ট অরবিটাল লুক দেওয়া হয়েছে
         <div className="relative min-h-screen py-12 flex items-center justify-center bg-gradient-to-br from-slate-50 via-gray-100 to-blue-50 dark:from-slate-950 dark:via-gray-900 dark:to-slate-900 px-4 overflow-hidden">
 
-            {/* ব্যাকগ্রাউন্ড ডেকোরেটিভ গ্লোয়িং সার্কেল */}
+            {/* ব্যাকগ্রাউন্ড ডেকোরেティブ গ্লোয়িং সার্কেল */}
             <div className="absolute top-[-10%] left-[-10%] w-[300px] h-[300px] rounded-full bg-blue-400/20 dark:bg-blue-600/10 blur-3xl pointer-events-none" />
             <div className="absolute bottom-[-10%] right-[-10%] w-[300px] h-[300px] rounded-full bg-indigo-400/20 dark:bg-indigo-600/10 blur-3xl pointer-events-none" />
 
@@ -133,7 +142,7 @@ export default function RegisterPage() {
                     </TextField>
 
                     {/* CONFIRM PASSWORD */}
-                    <TextField isRequired name="confirmPassword">
+                    <TextField isRequired name="confirmPassword" type="password">
                         <Label className="text-gray-700 dark:text-gray-300 font-medium text-sm">Confirm Password</Label>
                         <Input className="hover:border-blue-400" placeholder="Confirm password" />
                         <FieldError className="text-xs text-red-500 mt-1" />
@@ -142,12 +151,13 @@ export default function RegisterPage() {
                     {/* ROLE */}
                     <TextField isRequired name="role">
                         <Label className="text-gray-700 dark:text-gray-300 font-medium text-sm">Role</Label>
+                        {/* 🛠️ লজিক ফিক্স: defaultValue এবং value পরিবর্তন করে "readers" করা হলো */}
                         <select
                             name="role"
-                            defaultValue="user"
+                            defaultValue="readers"
                             className="w-full px-3 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white/50 dark:bg-gray-900/50 text-gray-900 dark:text-white shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-sm cursor-pointer"
                         >
-                            <option value="user">User (Reader)</option>
+                            <option value="readers">User (Reader)</option>
                             <option value="librarian">Librarian</option>
                         </select>
                         <FieldError />
