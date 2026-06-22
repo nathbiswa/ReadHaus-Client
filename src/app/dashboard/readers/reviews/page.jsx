@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import { authClient } from "@/lib/auth-client";
 import { toast } from "react-toastify";
-import { Star, SquarePen, Trash2 } from "lucide-react"; // স্ক্রিনশটের আইকনগুলোর জন্য
+import { Star, SquarePen, Trash2, BookOpen } from "lucide-react";
 
 const MyReviews = () => {
     const { data: session } = authClient.useSession();
@@ -11,7 +11,7 @@ const MyReviews = () => {
     const [reviews, setReviews] = useState([]);
     const [loading, setLoading] = useState(true);
 
-    // ১. ব্যাকএন্ড থেকে ইউজারের রিভিউগুলো ফেচ করা
+    // ১. ব্যাকঅ্যান্ড থেকে ইউজারের রিভিউগুলো ফেচ করা
     useEffect(() => {
         const fetchMyReviews = async () => {
             if (!user?.email) return;
@@ -39,7 +39,7 @@ const MyReviews = () => {
         fetchMyReviews();
     }, [user?.email]);
 
-    // ২. রিভিউ ডিলিট করার হ্যান্ডলার (অপশনাল/ফিউচার লজিক)
+    // ২. রিভিউ ডিলিট করার হ্যান্ডলার
     const handleDeleteReview = async (reviewId) => {
         if (!confirm("Are you sure you want to delete this review?")) return;
 
@@ -50,7 +50,7 @@ const MyReviews = () => {
 
             if (res.ok && data.success) {
                 toast.success("Review deleted successfully!");
-                setReviews(reviews.filter(rev => rev._id !== reviewId && rev.id !== reviewId)); // UI থেকে ইনস্ট্যান্ট রিমুভ
+                setReviews(reviews.filter(rev => rev._id !== reviewId && rev.id !== reviewId));
             } else {
                 toast.error(data.message || "Could not delete review.");
             }
@@ -62,13 +62,16 @@ const MyReviews = () => {
     // ৩. রিভিউ এডিট করার হ্যান্ডলার
     const handleEditReview = (review) => {
         toast.info(`Edit mode triggered for: "${review.comment || review.reviewText}"`);
-        // এখানে আপনি চাইলে কোনো মডেল (Modal) ওপেন করতে পারেন এডিট করার জন্য
+        // পরবর্তীতে এখানে এডিট মডেল (Modal) ওপেন করার কোড লিখতে পারবেন
     };
 
     if (loading) {
         return (
-            <div className="p-8 text-center text-gray-500 font-medium min-h-screen bg-gray-50/50">
-                Loading your reviews...
+            <div className="flex items-center justify-center min-h-screen bg-gray-50/50 text-gray-500 font-medium">
+                <div className="flex items-center gap-2">
+                    <div className="w-5 h-5 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+                    Loading your reviews...
+                </div>
             </div>
         );
     }
@@ -78,7 +81,7 @@ const MyReviews = () => {
             {/* Header section */}
             <div className="mb-8">
                 <h1 className="text-3xl font-bold text-slate-900">My Reviews</h1>
-                <p className="text-gray-500 mt-1">Manage your book reviews.</p>
+                <p className="text-gray-500 mt-1">Manage your book reviews and thoughts.</p>
             </div>
 
             {/* Reviews List */}
@@ -90,41 +93,47 @@ const MyReviews = () => {
                 <div className="space-y-4 max-w-4xl">
                     {reviews.map((rev) => (
                         <div
-                            key={rev.id || rev._id}
+                            key={rev._id || rev.id}
                             className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex items-start justify-between transition-all duration-200 hover:shadow-md"
                         >
-                            {/* Left Side: Rating, Date & Content */}
-                            <div className="flex flex-col gap-2">
-                                {/* Stars Container */}
-                                <div className="flex items-center gap-0.5">
-                                    {[...Array(5)].map((_, index) => (
-                                        <Star
-                                            key={index}
-                                            className={`w-4 h-4 ${index < (rev.rating || 5)
-                                                ? "text-amber-400 fill-amber-400"
-                                                : "text-gray-200"
-                                                }`}
-                                        />
-                                    ))}
+                            {/* Left Side: Book Details, Rating, Date & Content */}
+                            <div className="flex flex-col gap-1.5 w-full pr-4">
+                                {/* Book Title Badge */}
+                                <div className="flex items-center gap-1 text-xs font-bold text-indigo-600 mb-1 bg-indigo-50/50 px-2.5 py-1 rounded-lg w-fit">
+                                    <BookOpen className="w-3 h-3" />
+                                    {rev.bookTitle || "Unknown Book"}
                                 </div>
 
-                                {/* Date */}
-                                <span className="text-xs text-gray-400">
-                                    {rev.createdAt || rev.date ? new Date(rev.createdAt || rev.date).toLocaleDateString('en-US', {
-                                        month: 'short',
-                                        day: 'numeric',
-                                        year: 'numeric'
-                                    }) : "Jun 15, 2026"}
-                                </span>
+                                {/* Stars & Date Container */}
+                                <div className="flex items-center gap-3">
+                                    <div className="flex items-center gap-0.5">
+                                        {[...Array(5)].map((_, index) => (
+                                            <Star
+                                                key={index}
+                                                className={`w-4 h-4 ${index < (rev.rating || 5)
+                                                    ? "text-amber-400 fill-amber-400"
+                                                    : "text-gray-200"
+                                                    }`}
+                                            />
+                                        ))}
+                                    </div>
+                                    <span className="text-xs text-gray-400">
+                                        {rev.createdAt ? new Date(rev.createdAt).toLocaleDateString('en-US', {
+                                            month: 'short',
+                                            day: 'numeric',
+                                            year: 'numeric'
+                                        }) : "N/A"}
+                                    </span>
+                                </div>
 
                                 {/* Review Text */}
-                                <p className="text-slate-700 text-sm mt-1 font-medium">
-                                    {rev.comment || rev.reviewText || "This was Best."}
+                                <p className="text-slate-700 text-sm mt-1 font-medium leading-relaxed">
+                                    "{rev.comment || rev.reviewText}"
                                 </p>
                             </div>
 
                             {/* Right Side: Action Buttons */}
-                            <div className="flex items-center gap-3 ml-4">
+                            <div className="flex items-center gap-2 shrink-0">
                                 {/* Edit Button */}
                                 <button
                                     onClick={() => handleEditReview(rev)}
@@ -136,7 +145,7 @@ const MyReviews = () => {
 
                                 {/* Delete Button */}
                                 <button
-                                    onClick={() => handleDeleteReview(rev.id || rev._id)}
+                                    onClick={() => handleDeleteReview(rev._id || rev.id)}
                                     className="p-2 text-rose-500 hover:bg-rose-50 rounded-xl transition-colors duration-200"
                                     title="Delete Review"
                                 >
