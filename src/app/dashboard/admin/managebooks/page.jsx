@@ -1,205 +1,116 @@
 'use client';
-import { useState } from "react";
-import { Trash2, Eye, EyeOff, Search, SlidersHorizontal, BookOpen } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Trash2, EyeOff, CheckCircle2, BookOpen } from "lucide-react";
+import { adminService } from "@/lib/core/server";
+import { toast, Toaster } from "react-hot-toast";
 
 const ManageAllBooks = () => {
-    // 💡 পরবর্তীতে এপিআই কলের মাধ্যমে ডাটাবেজ থেকে ডেটা এনে এই স্টেটটি রিপ্লেস করলেই সব ডাইনামিক হয়ে যাবে
-    const [books, setBooks] = useState([
-        {
-            id: "1",
-            title: "Voluptatibus dolor q",
-            author: "Fuga Quaerat commod",
-            category: "History",
-            fee: 30.00,
-            librarian: "James Rodriguez",
-            status: "Pending Approval"
-        },
-        {
-            id: "2",
-            title: "Quia sunt eum incidu",
-            author: "Quas consequatur od",
-            category: "Romance",
-            fee: 58.00,
-            librarian: "James Rodriguez",
-            status: "Unpublished"
-        },
-        {
-            id: "3",
-            title: "Proident sunt sunt",
-            author: "Eos dolores pariatu",
-            category: "History",
-            fee: 2.00,
-            librarian: "James Rodriguez",
-            status: "Published"
-        },
-        {
-            id: "4",
-            title: "The Silent Patient",
-            author: "Alex Michaelides",
-            category: "Mystery",
-            fee: 4.50,
-            librarian: "Sarah Mitchell",
-            status: "Published"
-        },
-        {
-            id: "5",
-            title: "Project Hail Mary",
-            author: "Andy Weir",
-            category: "Sci-Fi",
-            fee: 5.00,
-            librarian: "James Rodriguez",
-            status: "Checked Out"
-        }
-    ]);
+    const [books, setBooks] = useState([]);
+    const [loading, setLoading] = useState(true);
 
-    // স্ট্যাটাস অনুযায়ী ডাইনামিক কালার থিম জেনারেট করার ফাংশন
-    const getStatusStyles = (status) => {
-        switch (status?.toLowerCase()) {
-            case 'published':
-                return 'bg-emerald-50 text-emerald-700 border border-emerald-100';
-            case 'pending approval':
-                return 'bg-amber-50 text-amber-700 border border-amber-100';
-            case 'unpublished':
-                return 'bg-rose-50 text-rose-700 border border-rose-100';
-            case 'checked out':
-                return 'bg-blue-50 text-blue-700 border border-blue-100';
-            default:
-                return 'bg-slate-50 text-slate-600 border border-slate-200';
+    useEffect(() => {
+        fetchBooks();
+    }, []);
+
+    const fetchBooks = async () => {
+        try {
+            setLoading(true);
+            const response = await adminService.getAllBooks();
+            setBooks(response.data || []);
+        } catch (error) {
+            console.error("Error:", error);
+            toast.error("Failed to load books!");
+        } finally {
+            setLoading(false);
         }
     };
 
-    // ফোর্সবলি আনপাবলিশ/পাবলিশ স্টেট টগল হ্যান্ডলার (আপাতত ফ্রন্টএন্ড স্টেট আপডেট দেখাবে)
-    const handleTogglePublish = (id, currentStatus) => {
-        const newStatus = currentStatus?.toLowerCase() === 'published' ? 'Unpublished' : 'Published';
-        setBooks(prev =>
-            prev.map(book => book.id === id ? { ...book, status: newStatus } : book)
-        );
+    const handleToggleStatus = async (book) => {
+        const newStatus = book.status === 'Published' ? 'Unpublished' : 'Published';
+        try {
+            await adminService.updateBook(book._id, { status: newStatus });
+            setBooks(prev => prev.map(b => b._id === book._id ? { ...b, status: newStatus } : b));
+            toast.success(`Book ${newStatus} successfully!`);
+        } catch (error) {
+            toast.error("Update failed!");
+        }
     };
 
-    // বই সম্পূর্ণ ডিলিট করার হ্যান্ডলার
-    const handleDeleteBook = (id) => {
-        if (confirm("Are you sure you want to forcibly delete this book from the platform permanently?")) {
-            setBooks(prev => prev.filter(book => book.id !== id));
+    const handleDeleteBook = async (id) => {
+        if (confirm("Are you sure you want to delete this book?")) {
+            try {
+                await adminService.deleteBook(id);
+                setBooks(prev => prev.filter(b => b._id !== id));
+                toast.success("Book deleted successfully!");
+            } catch (error) {
+                toast.error("Delete failed!");
+            }
         }
     };
 
     return (
-        <div className="p-8 bg-slate-50/50 min-h-screen">
-            {/* Header Section */}
-            <div className="mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                <div>
-                    <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
-                        Manage All Books
-                    </h1>
-                    <p className="text-slate-500 mt-1">
-                        Oversee all books on the platform. <span className="font-semibold text-indigo-600">({books.length} total)</span>
-                    </p>
-                </div>
+        <div className="p-8 bg-slate-50 min-h-screen">
+            <Toaster position="top-right" />
 
-                {/* Search & Action Box */}
-                <div className="flex items-center gap-3">
-                    <div className="relative">
-                        <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-                        <input
-                            type="text"
-                            placeholder="Search platform books..."
-                            className="pl-10 pr-4 py-2 bg-white border border-slate-200 text-slate-700 placeholder-slate-400 rounded-xl text-sm focus:outline-none focus:border-indigo-500 w-full md:w-64 transition-colors shadow-sm"
-                        />
+            <div className="mb-8">
+                <h1 className="text-2xl font-bold text-slate-800">Manage All Books</h1>
+
+                {/* Total Books Card */}
+                <div className="mt-6 inline-flex items-center gap-4 bg-white p-6 rounded-2xl border border-slate-100 shadow-sm min-w-[200px]">
+                    <div className="p-3 bg-indigo-50 text-indigo-600 rounded-xl">
+                        <BookOpen size={24} />
                     </div>
-                    <button className="p-2 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 transition-colors shadow-sm" title="Filters">
-                        <SlidersHorizontal className="w-4 h-4" />
-                    </button>
+                    <div>
+                        <p className="text-sm text-slate-500 font-medium uppercase">Total Books</p>
+                        <h2 className="text-3xl font-black text-slate-800">{books.length}</h2>
+                    </div>
                 </div>
             </div>
 
-            {/* 🚀 মডার্ন গ্লোবাল বুক টেবিল */}
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse">
-                        <thead>
-                            <tr className="bg-slate-50/70 border-b border-slate-100">
-                                <th className="p-4 text-xs font-bold uppercase tracking-wider text-slate-500 w-1/4">Title</th>
-                                <th className="p-4 text-xs font-bold uppercase tracking-wider text-slate-500">Author</th>
-                                <th className="p-4 text-xs font-bold uppercase tracking-wider text-slate-500">Category</th>
-                                <th className="p-4 text-xs font-bold uppercase tracking-wider text-slate-500">Fee</th>
-                                <th className="p-4 text-xs font-bold uppercase tracking-wider text-slate-500">Librarian</th>
-                                <th className="p-4 text-xs font-bold uppercase tracking-wider text-slate-500">Status</th>
-                                <th className="p-4 text-xs font-bold uppercase tracking-wider text-slate-500 text-right pr-6">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-50">
-                            {books.length === 0 ? (
-                                <tr>
-                                    <td colSpan="7" className="p-8 text-center text-slate-400 text-sm">
-                                        No platform books listed.
+            <div className="bg-white rounded-xl shadow border overflow-x-auto">
+                <table className="w-full text-left">
+                    <thead className="bg-slate-100 text-slate-600 text-xs uppercase">
+                        <tr>
+                            <th className="p-4">Title</th>
+                            <th className="p-4">Author</th>
+                            <th className="p-4">Category</th>
+                            <th className="p-4">Fee</th>
+                            <th className="p-4">Librarian</th>
+                            <th className="p-4">Status</th>
+                            <th className="p-4 text-center">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y">
+                        {loading ? (
+                            <tr><td colSpan="7" className="p-8 text-center text-slate-400">Loading books...</td></tr>
+                        ) : books.length === 0 ? (
+                            <tr><td colSpan="7" className="p-8 text-center text-slate-400">No books found.</td></tr>
+                        ) : (
+                            books.map(book => (
+                                <tr key={book._id} className="hover:bg-slate-50 transition-colors">
+                                    <td className="p-4 font-medium">{book.title}</td>
+                                    <td className="p-4 text-sm">{book.author}</td>
+                                    <td className="p-4 text-sm">{book.category}</td>
+                                    <td className="p-4 text-sm">${book.deliveryFee || 0}</td>
+                                    <td className="p-4 text-sm">{book.librarianName || 'N/A'}</td>
+                                    <td className="p-4">
+                                        <span className={`px-2 py-1 text-xs rounded-full ${book.status === 'Published' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                                            {book.status}
+                                        </span>
+                                    </td>
+                                    <td className="p-4 flex justify-center gap-2">
+                                        <button onClick={() => handleToggleStatus(book)} className="p-2 text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition">
+                                            {book.status === 'Published' ? <EyeOff size={16} /> : <CheckCircle2 size={16} />}
+                                        </button>
+                                        <button onClick={() => handleDeleteBook(book._id)} className="p-2 text-red-600 bg-red-50 rounded-lg hover:bg-red-100 transition">
+                                            <Trash2 size={16} />
+                                        </button>
                                     </td>
                                 </tr>
-                            ) : (
-                                books.map((book) => (
-                                    <tr key={book.id} className="hover:bg-slate-50/40 transition-colors duration-150">
-                                        {/* Book Title */}
-                                        <td className="p-4 font-semibold text-slate-800 break-words max-w-[220px]">
-                                            {book.title}
-                                        </td>
-
-                                        {/* Author */}
-                                        <td className="p-4 text-slate-600 text-sm font-medium">
-                                            {book.author}
-                                        </td>
-
-                                        {/* Category */}
-                                        <td className="p-4 text-slate-500 text-sm">
-                                            {book.category}
-                                        </td>
-
-                                        {/* Fee */}
-                                        <td className="p-4 text-slate-800 font-semibold text-sm">
-                                            ${book.fee.toFixed(2)}
-                                        </td>
-
-                                        {/* Librarian Name */}
-                                        <td className="p-4 text-slate-600 text-sm">
-                                            {book.librarian}
-                                        </td>
-
-                                        {/* Status Badge */}
-                                        <td className="p-4">
-                                            <span className={`px-2.5 py-1 text-xs font-bold rounded-full inline-block ${getStatusStyles(book.status)}`}>
-                                                {book.status}
-                                            </span>
-                                        </td>
-
-                                        {/* Admin Control Actions */}
-                                        <td className="p-4 text-right pr-6">
-                                            <div className="flex items-center justify-end gap-2">
-                                                {/* Forcibly Unpublish/Publish Toggle */}
-                                                <button
-                                                    onClick={() => handleTogglePublish(book.id, book.status)}
-                                                    className={`p-2 rounded-xl border transition-all ${book.status?.toLowerCase() === 'unpublished'
-                                                        ? "bg-rose-50 border-rose-100 text-rose-600 hover:bg-rose-100"
-                                                        : "bg-indigo-50/50 border-indigo-100 text-indigo-600 hover:bg-indigo-100"
-                                                        }`}
-                                                    title={book.status?.toLowerCase() === 'unpublished' ? "Publish Book" : "Forcibly Unpublish Book"}
-                                                >
-                                                    {book.status?.toLowerCase() === 'unpublished' ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                                                </button>
-
-                                                {/* Hard Delete Button */}
-                                                <button
-                                                    onClick={() => handleDeleteBook(book.id)}
-                                                    className="p-2 text-rose-600 bg-rose-50/50 hover:bg-rose-100 border border-rose-100 rounded-xl transition-all"
-                                                    title="Completely Delete Listing"
-                                                >
-                                                    <Trash2 className="w-4 h-4" />
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))
-                            )}
-                        </tbody>
-                    </table>
-                </div>
+                            ))
+                        )}
+                    </tbody>
+                </table>
             </div>
         </div>
     );

@@ -16,7 +16,7 @@ export default function AdminOverview() {
         async function fetchLiveStats() {
             try {
                 // ক্যাশ এড়ানোর জন্য টাইমস্ট্যাম্প বা নো-ক্যাশ অপশন যোগ করা হয়েছে
-                const res = await fetch("http://localhost:5000/api/admin/dashboard-stats", {
+                const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/admin/dashboard-stats`, {
                     cache: "no-store"
                 });
 

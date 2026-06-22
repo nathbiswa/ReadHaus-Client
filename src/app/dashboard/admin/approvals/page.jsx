@@ -6,18 +6,19 @@ import { CircleCheck } from "@gravity-ui/icons";
 import { Trash2 } from "lucide-react";
 import { toast } from "react-toastify";
 import { adminService } from "@/lib/core/server";
+
 export default function BookApprovalQueue() {
     const [books, setBooks] = useState([]);
     const [loading, setLoading] = useState(true);
     const [actionLoading, setActionLoading] = useState(null);
 
-    // 🚀 সার্ভিস ব্যবহার করে ডাটা ফেচ করা
+    // 🚀 Fetching data using service
     const fetchPendingBooks = async () => {
         try {
             const data = await adminService.getPendingBooks();
             setBooks(data || []);
         } catch (error) {
-            toast.error("সার্ভার থেকে ডাটা লোড করা যায়নি!");
+            toast.error("Failed to load data from the server!");
         } finally {
             setLoading(false);
         }
@@ -27,31 +28,31 @@ export default function BookApprovalQueue() {
         fetchPendingBooks();
     }, []);
 
-    // 🎯 বই Approve করার ফাংশন
+    // 🎯 Function to approve a book
     const handleApprove = async (bookId) => {
         setActionLoading(bookId);
         try {
             await adminService.approveBook(bookId);
-            toast.success("বইটি অনুমোদন করা হয়েছে!");
+            toast.success("Book has been approved successfully!");
             setBooks(prevBooks => prevBooks.filter(book => book._id !== bookId));
         } catch (error) {
-            toast.error("অনুমোদন করা সম্ভব হয়নি।");
+            toast.error("Failed to approve the book.");
         } finally {
             setActionLoading(null);
         }
     };
 
-    // 🎯 বই Delete করার ফাংশন
+    // 🎯 Function to delete a book
     const handleDelete = async (bookId) => {
-        if (!confirm("আপনি কি নিশ্চিত যে বইটি পুরোপুরি ডিলিট করতে চান?")) return;
+        if (!confirm("Are you sure you want to permanently delete this book?")) return;
 
         setActionLoading(bookId);
         try {
             await adminService.rejectBook(bookId);
-            toast.success("বইটি ডাটাবেজ থেকে পুরোপুরি মুছে ফেলা হয়েছে।");
+            toast.success("Book has been permanently removed from the database.");
             setBooks(prevBooks => prevBooks.filter(book => book._id !== bookId));
         } catch (error) {
-            toast.error("ডিলিট করা সম্ভব হয়নি।");
+            toast.error("Failed to delete the book.");
         } finally {
             setActionLoading(null);
         }
@@ -66,7 +67,7 @@ export default function BookApprovalQueue() {
     if (loading) {
         return (
             <div className="h-[60vh] flex items-center justify-center">
-                <Spinner size="lg" color="secondary" label="নতুন বইয়ের আবেদনগুলো লোড হচ্ছে..." />
+                <Spinner size="lg" color="secondary" label="Loading pending book submissions..." />
             </div>
         );
     }
@@ -78,12 +79,12 @@ export default function BookApprovalQueue() {
                 <p className="text-slate-500 text-sm mt-1">Review and approve new book submissions.</p>
             </div>
 
-            {/* 📋 HeroUI সাব-কম্পোনেন্ট ফিক্সড আর্কিটেকচার */}
+            {/* 📋 HeroUI Component Architecture */}
             <Table removeWrapper className="bg-white rounded-2xl shadow-sm">
                 <Table.ScrollContainer>
                     <Table.Content aria-label="Book Approval Queue Table">
                         <Table.Header>
-                            {/* 💡 HeroUI নিয়ম: টেক্সট সরাসরি না দিয়ে ফাংশন রিটার্ন হিসেবে দিতে হবে */}
+                            {/* 💡 HeroUI requirement: Columns should return a function */}
                             <Table.Column className="bg-[#f8fafc] text-slate-400 font-semibold text-xs py-4">{() => "TITLE"}</Table.Column>
                             <Table.Column className="bg-[#f8fafc] text-slate-400 font-semibold text-xs py-4">{() => "AUTHOR"}</Table.Column>
                             <Table.Column className="bg-[#f8fafc] text-slate-400 font-semibold text-xs py-4">{() => "CATEGORY"}</Table.Column>
@@ -138,7 +139,7 @@ export default function BookApprovalQueue() {
                 </Table.ScrollContainer>
             </Table>
 
-            {/* 💡 Empty State হ্যান্ডেল করার জন্য টেবিলের বাইরে কাস্টম ডিজাইন */}
+            {/* 💡 Custom design for empty state */}
             {books.length === 0 && (
                 <div className="text-center text-slate-400 py-12 bg-white rounded-b-2xl border-t border-slate-100 shadow-sm">
                     No new books are awaiting approval.

@@ -1,46 +1,123 @@
-// 🌐 আপনার ব্যাকএন্ডের বেস URL
-const BASE_URL = "http://localhost:5000/api/admin";
+import { authClient } from "../auth-client";
+
+const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL;
+
+const getAuthHeaders = async () => {
+    const { data: token } = await authClient.token();
+    const headers = {
+        'Content-Type': 'application/json',
+    };
+
+    if (token?.token) {
+        headers['Authorization'] = `Bearer ${token.token}`;
+    }
+
+    return headers;
+};
 
 export const adminService = {
-    // 🚀 ১. pending বইয়ের তালিকা নিয়ে আসা
     getPendingBooks: async () => {
-        try {
-            const res = await fetch(`${BASE_URL}/book-approvals`, {
-                cache: "no-store",
-            });
-            if (!res.ok) throw new Error("ডাটা লোড করতে ব্যর্থ হয়েছে");
-            return await res.json();
-        } catch (error) {
-            console.error("getPendingBooks Error:", error);
-            throw error;
-        }
+        const headers = await getAuthHeaders();
+        const res = await fetch(`${BASE_URL}/api/admin/book-approvals`, {
+            method: 'GET',
+            headers,
+            cache: "no-store",
+        });
+        if (!res.ok) throw new Error("Failed to fetch pending books");
+        return await res.json();
     },
 
-    // 🎯 ২. বই অনুমোদন করা
     approveBook: async (bookId) => {
-        try {
-            const res = await fetch(`${BASE_URL}/book-approve/${bookId}`, {
-                method: "PATCH",
-            });
-            if (!res.ok) throw new Error("অনুমোদন করা সম্ভব হয়নি");
-            return await res.json();
-        } catch (error) {
-            console.error("approveBook Error:", error);
-            throw error;
-        }
+        const headers = await getAuthHeaders();
+        const res = await fetch(`${BASE_URL}/api/admin/book-approve/${bookId}`, {
+            method: "PATCH",
+            headers,
+        });
+        if (!res.ok) throw new Error("Failed to approve the book");
+        return await res.json();
     },
 
-    // 🗑️ ৩. বই পুরোপুরি ডিলিট করা
     rejectBook: async (bookId) => {
-        try {
-            const res = await fetch(`${BASE_URL}/book-reject/${bookId}`, {
-                method: "DELETE",
-            });
-            if (!res.ok) throw new Error("ডিলিট করা সম্ভব হয়নি");
-            return await res.json();
-        } catch (error) {
-            console.error("rejectBook Error:", error);
-            throw error;
+        const headers = await getAuthHeaders();
+        const res = await fetch(`${BASE_URL}/api/admin/book-reject/${bookId}`, {
+            method: "DELETE",
+            headers,
+        });
+        if (!res.ok) throw new Error("Failed to delete the book");
+        return await res.json();
+    },
+
+    // এখানে '/api/admin/users' (plural) ব্যবহার করা হয়েছে
+    getAllUsers: async () => {
+        const headers = await getAuthHeaders();
+        const res = await fetch(`${BASE_URL}/api/admin/users`, {
+            method: 'GET',
+            headers,
+            cache: "no-store",
+        });
+        if (!res.ok) throw new Error("Failed to fetch users");
+        return await res.json();
+    },
+
+    updateUserRole: async (userId, role) => {
+        const headers = await getAuthHeaders();
+        const res = await fetch(`${BASE_URL}/api/admin/user-role/${userId}`, {
+            method: 'PATCH',
+            headers,
+            body: JSON.stringify({ role }),
+        });
+        if (!res.ok) throw new Error("Failed to update user role");
+        return await res.json();
+    },
+
+    deleteUser: async (userId) => {
+        const headers = await getAuthHeaders();
+        const res = await fetch(`${BASE_URL}/api/admin/user/${userId}`, {
+            method: 'DELETE',
+            headers,
+        });
+        if (!res.ok) throw new Error("Failed to delete user");
+        return await res.json();
+    },
+
+    // adminService-এ যোগ করুন
+    getAllBooks: async () => {
+        const headers = await getAuthHeaders();
+        const res = await fetch(`${BASE_URL}/api/books`, { // আপনার ব্যাকএন্ডে GET /api/books আছে
+            method: 'GET',
+            headers,
+            cache: "no-store",
+        });
+        if (!res.ok) throw new Error("Failed to fetch books");
+        return await res.json();
+    },
+
+    deleteBook: async (bookId) => {
+        const headers = await getAuthHeaders();
+        const res = await fetch(`${BASE_URL}/api/books/${bookId}`, {
+            method: 'DELETE',
+            headers,
+        });
+        if (!res.ok) throw new Error("Failed to delete book");
+        return await res.json();
+    },
+    // adminService-এর ভেতরে এই মেথডটি যোগ করুন
+    updateBook: async (bookId, updateData) => {
+        const headers = await getAuthHeaders();
+        const res = await fetch(`${BASE_URL}/api/books/${bookId}`, {
+            method: 'PATCH', // অথবা আপনার ব্যাকএন্ড অনুযায়ী PUT/PATCH
+            headers,
+            body: JSON.stringify(updateData),
+        });
+
+        if (!res.ok) {
+            const errorData = await res.json();
+            throw new Error(errorData.message || "Failed to update book status");
         }
-    }
+
+        return await res.json();
+    },
 };
+
+
+
