@@ -7,7 +7,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
 
 const COLORS = ["#6366f1", "#8b5cf6", "#f59e0b", "#10b981", "#3b82f6", "#ec4899", "#ef4444"];
 
-export default function OverviewPage() {
+export default function AdminOverview() {
     const [stats, setStats] = useState(null);
     const [loading, setLoading] = useState(true);
 
