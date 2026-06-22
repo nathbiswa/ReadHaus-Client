@@ -2,9 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { Star, Truck, Calendar, Heart, ArrowLeft, ShieldCheck, User, MessageSquare, Send, DollarSign } from "lucide-react";
+import { Star, Heart, ArrowLeft, ShieldCheck, MessageSquare, Send, DollarSign } from "lucide-react";
 import { getSingleBook } from "@/lib/action/getbooks";
-import axios from "axios";
 import { toast } from "react-toastify";
 import { authClient } from "@/lib/auth-client";
 
@@ -13,13 +12,14 @@ export default function BookDetailsPage() {
     const router = useRouter();
     const [book, setBook] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [isWishlisted, setIsWishlisted] = useState(false); // ❤️ উইশলিস্ট স্টেট
 
     // রিভিউ ও কমেন্ট স্টেট
     const [reviews, setReviews] = useState([]);
     const [newComment, setNewComment] = useState("");
     const [newRating, setNewRating] = useState(5);
 
-    // Better Auth সেশন রিসিভ করা হচ্ছে
+    // Better Auth সেশন
     const { data: session } = authClient.useSession();
     const user = session?.user;
 
@@ -27,26 +27,30 @@ export default function BookDetailsPage() {
         const fetchBookDetails = async () => {
             try {
                 setLoading(true);
-                // 🔒 ইউজার লগইন থাকলে তার ইমেইল getSingleBook-এ পাঠানো হচ্ছে
                 const userEmail = user?.email || "";
                 const response = await getSingleBook(id, userEmail);
 
                 if (response) {
                     setBook(response);
                     setReviews(response.reviews || []);
+
+                    // বইটির ডেটা লোড হওয়ার সময় যদি অলরেডি উইশলিস্টেড থাকে (ব্যাকএন্ড ফ্ল্যাগ অনুসারে)
+                    if (response.isWishlisted) {
+                        setIsWishlisted(true);
+                    }
                 }
             } catch (error) {
                 console.error("Error fetching book details:", error);
+                toast.error("Failed to load book details.");
             } finally {
                 setLoading(false);
             }
         };
 
-        // 🔒 ইউজার সেশন লোড হওয়া পর্যন্ত বা লোড হলে ডাটা ফেচ হবে
         if (id) fetchBookDetails();
     }, [id, user?.email]);
 
-    // উইশলিস্ট হ্যান্ডলার (লগইন এবং রিডার্স রোল চেক)
+    // ❤️ উইশলিস্ট হ্যান্ডলার (ফিক্সড ও ডাইনামিক কালার লজিক)
     const handleWishlistClick = async () => {
         if (!user) {
             toast.info("Please login to add this book to your wishlist!");
@@ -60,35 +64,44 @@ export default function BookDetailsPage() {
             return;
         }
 
+        // অলরেডি উইশলিস্টে থাকলে রিকোয়েস্ট ব্লক করা
+        if (isWishlisted) {
+            toast.info("This book is already in your wishlist!");
+            return;
+        }
+
         try {
-            // 📝 ব্যাকএন্ডে পাঠানোর জন্য ডাটা অবজেক্ট তৈরি
+            const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+
             const wishlistData = {
                 userEmail: user.email,
                 bookId: book._id || id,
-                title: book.title,
+                bookTitle: book.title,
                 author: book.author,
-                image: book.image,
+                bookImage: book.image,
                 category: book.category,
+                price: book.price || book.deliveryFee || 0,
+                createdAt: new Date().toISOString()
             };
 
-            // 🚀 axios এর বদলে native fetch ব্যবহার করা হলো
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/wishlist`, {
+            const res = await fetch(`${baseUrl}/api/wishlist`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
                 },
-                body: JSON.stringify(wishlistData), // ডাটাকে স্ট্রিং-এ কনভার্ট করা হলো
+                body: JSON.stringify(wishlistData),
             });
 
-            // fetch-এর রেসপন্সকে জেসন অবজেক্টে রূপান্তর
             const data = await res.json();
 
-            // যদি রেসপন্স সফল (status 200-299) হয়
             if (res.ok && data.success) {
                 toast.success("Added to wishlist successfully!");
+                setIsWishlisted(true); // 🚀 সাকসেস হলে স্টেট ট্রু করে লাল কালার ট্রিগার করা হলো
             } else {
-                // ব্যাকএন্ড থেকে পাঠানো নির্দিষ্ট এরর মেসেজ (যেমন: "ইতিমধ্যেই উইশলিস্টে আছে") দেখাবে
                 toast.error(data.message || "Failed to add to wishlist");
+                if (data.message?.includes("already")) {
+                    setIsWishlisted(true);
+                }
             }
 
         } catch (error) {
@@ -97,24 +110,23 @@ export default function BookDetailsPage() {
         }
     };
 
-    // পার্চেস/পেমেন্ট ফর্ম সাবমিট হ্যান্ডলার (লগইন এবং রিডার্স রোল চেক)
+    // পার্চেস/পেমেন্ট ফর্ম সাবমিট হ্যান্ডলার
     const handlePurchaseSubmit = (e) => {
         if (!user) {
-            e.preventDefault(); // ফর্মের অ্যাকশন বা সাবমিট হওয়া বন্ধ করবে
+            e.preventDefault();
             toast.info("Please login to request delivery and pay!");
             router.push("/login");
             return;
         }
 
-        // 🔒 চেক করা হচ্ছে ইউজারের রোল readers কিনা
         if (user?.role !== "readers") {
-            e.preventDefault(); // ফর্ম সাবমিট হওয়া বন্ধ করবে
+            e.preventDefault();
             toast.error("Only users with 'readers' role can purchase books!");
             return;
         }
     };
 
-    // রিভিউ সাবমিট হ্যান্ডলার (লগইন এবং পার্চেস স্ট্যাটাস চেক)
+    // রিভিউ সাবমিট হ্যান্ডলার
     const handleReviewSubmit = async (e) => {
         e.preventDefault();
         if (!newComment.trim()) return;
@@ -125,7 +137,6 @@ export default function BookDetailsPage() {
             return;
         }
 
-        // 🔒 ইউজার বইটি পার্চেস না করলে রিভিউ দিতে পারবে না
         if (!book?.isPurchased) {
             toast.error("You must purchase this book before leaving a review!");
             return;
@@ -212,21 +223,24 @@ export default function BookDetailsPage() {
                             <p className="text-gray-300 text-sm leading-relaxed bg-gray-950/30 p-4 rounded-xl border border-gray-800/40">{book.description}</p>
                         </div>
 
-                        {/* 🛠️ বাটন এরিয়া */}
+                        {/* বাটন এরিয়া */}
                         <div className="flex flex-col sm:flex-row gap-4 pt-4 w-full">
 
-                            {/* Wishlist Button */}
+                            {/* ❤️ Wishlist Button (Dynamic Styling Added) */}
                             <button
                                 type="button"
                                 onClick={handleWishlistClick}
-                                className="flex-1 py-3.5 px-6 bg-gray-950 border border-gray-800 text-gray-300 font-bold rounded-xl text-xs uppercase flex items-center justify-center gap-2 hover:text-rose-400 hover:border-rose-500/40 transition-all"
+                                className={`flex-1 py-3.5 px-6 font-bold rounded-xl text-xs uppercase flex items-center justify-center gap-2 transition-all border ${isWishlisted
+                                    ? "bg-rose-600 border-rose-600 text-white hover:bg-rose-700"
+                                    : "bg-gray-950 border-gray-800 text-gray-300 hover:text-rose-400 hover:border-rose-500/40"
+                                    }`}
                             >
-                                <Heart className="w-4 h-4" /> Wishlist
+                                <Heart className={`w-4 h-4 ${isWishlisted ? "fill-white" : ""}`} />
+                                {isWishlisted ? "Wishlisted" : "Wishlist"}
                             </button>
 
                             <div className="flex-[2] flex">
                                 {book?.isPurchased ? (
-                                    // ১. ইউজার অলরেডি কিনে থাকলে বাটন সম্পূর্ণ লক/ডিজেবল থাকবে
                                     <button
                                         type="button"
                                         disabled
@@ -235,7 +249,6 @@ export default function BookDetailsPage() {
                                         <ShieldCheck className="w-4 h-4" /> Already Requested / Paid
                                     </button>
                                 ) : isBookAvailable ? (
-                                    // ২. ইউজার যদি না কিনে থাকে এবং বই এভেইলেবল থাকে
                                     <form action="/api/payments" method="POST" onSubmit={handlePurchaseSubmit} className="w-full">
                                         <input type="hidden" name="price" value={book.price || book.deliveryFee || 0} />
                                         <input type="hidden" name="status" value="pending" />
@@ -253,7 +266,6 @@ export default function BookDetailsPage() {
                                         </button>
                                     </form>
                                 ) : (
-                                    // ৩. বই যদি এভেইলেবল না থাকে (Checked Out থাকে)
                                     <button
                                         type="button"
                                         disabled
@@ -273,7 +285,7 @@ export default function BookDetailsPage() {
                     </div>
                 </div>
 
-                {/* 💬 রিভিউ এবং কমেন্টস সেকশন */}
+                {/* 리뷰 및 세ক션 */}
                 <div className="bg-gray-900 border border-gray-800 rounded-3xl p-6 md:p-10 space-y-8">
                     <h3 className="text-xl font-bold font-serif flex items-center gap-2 border-b border-gray-800 pb-4 text-amber-400">
                         <MessageSquare className="w-5 h-5" /> Reviews & Comments ({reviews.length})
