@@ -10,11 +10,13 @@ import { adminService } from "@/lib/core/server";
 export default function BookApprovalQueue() {
     const [books, setBooks] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [actionLoading, setActionLoading] = useState(null);
+    // 🛠️ অ্যাকশন টাইপ এবং আইডি আলাদা ট্র্যাক করার জন্য অবজেক্ট স্টেট
+    const [action, setAction] = useState({ id: null, type: null });
 
     // 🚀 Fetching data using service
     const fetchPendingBooks = async () => {
         try {
+            setLoading(true);
             const data = await adminService.getPendingBooks();
             setBooks(data || []);
         } catch (error) {
@@ -30,36 +32,38 @@ export default function BookApprovalQueue() {
 
     // 🎯 Function to approve a book
     const handleApprove = async (bookId) => {
-        setActionLoading(bookId);
+        setAction({ id: bookId, type: "approve" });
         try {
             await adminService.approveBook(bookId);
             toast.success("Book has been approved successfully!");
             setBooks(prevBooks => prevBooks.filter(book => book._id !== bookId));
         } catch (error) {
-            toast.error("Failed to approve the book.");
+            console.error("Approve error detail:", error);
+            toast.error("Failed to approve the book. Check network console.");
         } finally {
-            setActionLoading(null);
+            setAction({ id: null, type: null });
         }
     };
 
-    // 🎯 Function to delete a book
+    // 🎯 Function to delete/reject a book
     const handleDelete = async (bookId) => {
         if (!confirm("Are you sure you want to permanently delete this book?")) return;
 
-        setActionLoading(bookId);
+        setAction({ id: bookId, type: "delete" });
         try {
             await adminService.rejectBook(bookId);
             toast.success("Book has been permanently removed from the database.");
             setBooks(prevBooks => prevBooks.filter(book => book._id !== bookId));
         } catch (error) {
+            console.error("Delete error detail:", error);
             toast.error("Failed to delete the book.");
         } finally {
-            setActionLoading(null);
+            setAction({ id: null, type: null });
         }
     };
 
     const formatDate = (dateString) => {
-        if (!dateString) return "Jun 20, 2026";
+        if (!dateString) return "Jun 24, 2026";
         const options = { year: 'numeric', month: 'short', day: 'numeric' };
         return new Date(dateString).toLocaleDateString('en-US', options);
     };
@@ -84,14 +88,14 @@ export default function BookApprovalQueue() {
                 <Table.ScrollContainer>
                     <Table.Content aria-label="Book Approval Queue Table">
                         <Table.Header>
-                            {/* 💡 HeroUI requirement: Columns should return a function */}
-                            <Table.Column className="bg-[#f8fafc] text-slate-400 font-semibold text-xs py-4">{() => "TITLE"}</Table.Column>
-                            <Table.Column className="bg-[#f8fafc] text-slate-400 font-semibold text-xs py-4">{() => "AUTHOR"}</Table.Column>
-                            <Table.Column className="bg-[#f8fafc] text-slate-400 font-semibold text-xs py-4">{() => "CATEGORY"}</Table.Column>
-                            <Table.Column className="bg-[#f8fafc] text-slate-400 font-semibold text-xs py-4">{() => "FEE"}</Table.Column>
-                            <Table.Column className="bg-[#f8fafc] text-slate-400 font-semibold text-xs py-4">{() => "LIBRARIAN"}</Table.Column>
-                            <Table.Column className="bg-[#f8fafc] text-slate-400 font-semibold text-xs py-4">{() => "DATE"}</Table.Column>
-                            <Table.Column className="bg-[#f8fafc] text-slate-400 font-semibold text-xs py-4 text-center">{() => "ACTIONS"}</Table.Column>
+                            {/* 💡 HeroUI এর বেস্ট প্র্যাকটিস অনুযায়ী কি (key) গুলো সেট করা হলো */}
+                            <Table.Column key="title" className="bg-[#f8fafc] text-slate-400 font-semibold text-xs py-4">{() => "TITLE"}</Table.Column>
+                            <Table.Column key="author" className="bg-[#f8fafc] text-slate-400 font-semibold text-xs py-4">{() => "AUTHOR"}</Table.Column>
+                            <Table.Column key="category" className="bg-[#f8fafc] text-slate-400 font-semibold text-xs py-4">{() => "CATEGORY"}</Table.Column>
+                            <Table.Column key="fee" className="bg-[#f8fafc] text-slate-400 font-semibold text-xs py-4">{() => "FEE"}</Table.Column>
+                            <Table.Column key="librarian" className="bg-[#f8fafc] text-slate-400 font-semibold text-xs py-4">{() => "LIBRARIAN"}</Table.Column>
+                            <Table.Column key="date" className="bg-[#f8fafc] text-slate-400 font-semibold text-xs py-4">{() => "DATE"}</Table.Column>
+                            <Table.Column key="actions" className="bg-[#f8fafc] text-slate-400 font-semibold text-xs py-4 text-center">{() => "ACTIONS"}</Table.Column>
                         </Table.Header>
 
                         <Table.Body>
@@ -114,8 +118,9 @@ export default function BookApprovalQueue() {
                                             <Button
                                                 size="sm"
                                                 className="bg-[#6366f1] text-white font-medium px-4 rounded-xl shadow-md hover:bg-[#4f46e5]"
-                                                startContent={actionLoading !== book._id && <CircleCheck className="w-4 h-4" />}
-                                                isLoading={actionLoading === book._id}
+                                                startContent={!(action.id === book._id && action.type === "approve") && <CircleCheck className="w-4 h-4" />}
+                                                isLoading={action.id === book._id && action.type === "approve"}
+                                                disabled={action.id === book._id && action.type === "delete"}
                                                 onClick={() => handleApprove(book._id)}
                                             >
                                                 Approve
@@ -124,8 +129,9 @@ export default function BookApprovalQueue() {
                                                 size="sm"
                                                 variant="bordered"
                                                 className="border-red-100 text-red-500 hover:bg-red-50 font-medium px-4 rounded-xl"
-                                                startContent={actionLoading !== book._id && <Trash2 className="w-4 h-4" />}
-                                                isLoading={actionLoading === book._id}
+                                                startContent={!(action.id === book._id && action.type === "delete") && <Trash2 className="w-4 h-4" />}
+                                                isLoading={action.id === book._id && action.type === "delete"}
+                                                disabled={action.id === book._id && action.type === "approve"}
                                                 onClick={() => handleDelete(book._id)}
                                             >
                                                 Delete

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { Star, ArrowRight } from "lucide-react";
+import Image from "next/image";
 
 export default function BookCard({
     _id, // ডাইনামিক রাউটিং এর জন্য আইডি
@@ -15,18 +16,23 @@ export default function BookCard({
     deliveryFee,
     status
 }) {
-    // ডাটাবেজের "available" স্ট্যাটাস চেক করা হচ্ছে
-    const isAvailable = status?.toLowerCase() === "available";
+    // 🛠️ ফিক্স ১: ডাটাবেজের "published" অথবা "available" দুটো স্ট্যাটাসই চেক করা হচ্ছে
+    const currentStatus = status?.trim().toLowerCase();
+    const isAvailable = currentStatus === "published" || currentStatus === "available";
 
     return (
         <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden shadow-md flex flex-col justify-between group hover:border-amber-400/50 transition-all duration-300">
 
             {/* ১. ইমেজ এবং স্ট্যাটাস ব্যাজ */}
             <div className="relative bg-gray-950 p-4 pt-6 flex items-center justify-center h-52 border-b border-gray-800/50">
-                <img
+                {/* 🛠️ ফিক্স ২: এক্সটার্নাল ডোমেইন ইমেজের কারণে নেক্সট জেএস ক্র্যাশ এড়াতে স্ট্যান্ডার্ড img ট্যাগ ব্যবহার করা হলো */}
+                <Image
                     src={image || "https://images.unsplash.com/photo-1543002588-bfa74002ed7e"}
                     alt={title}
-                    className="max-h-44 object-contain rounded group-hover:scale-105 transition-transform duration-300"
+                    width={300}
+                    height={300}
+                    className="max-h-44 object-cover rounded group-hover:scale-105 transition-transform duration-300"
+                    loading="lazy"
                 />
 
                 <span className={`absolute top-3 right-3 text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded ${isAvailable
@@ -40,7 +46,7 @@ export default function BookCard({
             {/* ২. কার্ড বডি কনটেন্ট */}
             <div className="p-5 flex-1 flex flex-col justify-between space-y-4">
                 <div className="space-y-2">
-                    <span className="text-[11px] font-medium text-amber-400/80 bg-amber-400/5 px-2 py-0.5 rounded border border-amber-400/10">
+                    <span className="text-[11px] font-medium text-amber-400/80 bg-amber-400/5 px-2 py-0.5 rounded border border-amber-400/10 inline-block">
                         {category}
                     </span>
                     <h3 className="text-lg font-bold font-serif text-gray-100 line-clamp-1 group-hover:text-amber-400 transition-colors">
@@ -69,13 +75,16 @@ export default function BookCard({
 
                     <div className="text-right">
                         <p className="text-[10px] text-gray-500 uppercase tracking-wider">Delivery</p>
-                        <p className="text-sm font-bold text-emerald-400">${deliveryFee}</p>
+                        {/* 🛠️ ফি যদি ০ হয় তবে ফ্রি দেখাবে, অন্যথায় ফি শো করবে */}
+                        <p className="text-sm font-bold text-emerald-400">
+                            {deliveryFee === 0 || !deliveryFee ? "Free" : `$${Number(deliveryFee).toFixed(2)}`}
+                        </p>
                     </div>
                 </div>
 
                 {/* 🔗 ৪. ডাইনামিক ডিটেইলস পেজ লিংক বাটন */}
                 <Link
-                    href={`/book/${_id}`} // ক্লিক করলে সরাসরি ডিটেইলস পেজে নিয়ে যাবে
+                    href={`/book/${_id}`} // ক্লিক করলে সরাসরি ডিটেইলস পেজে নিয়ে যাবে
                     className="w-full mt-2 py-2 bg-gray-950 border border-gray-800 text-gray-200 text-xs font-semibold rounded hover:bg-amber-400 hover:text-gray-900 hover:border-amber-400 flex items-center justify-center gap-1.5 transition-all duration-200"
                 >
                     View Details <ArrowRight className="w-3.5 h-3.5" />

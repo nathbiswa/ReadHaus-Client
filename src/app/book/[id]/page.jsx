@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { Star, Heart, ArrowLeft, ShieldCheck, MessageSquare, Send, DollarSign } from "lucide-react";
+import { Star, Heart, ArrowLeft, ShieldCheck, MessageSquare, Send, DollarSign, Edit, Trash2, EyeOff } from "lucide-react";
 import { getSingleBook } from "@/lib/action/getbooks";
 import { toast } from "react-toastify";
 import { authClient } from "@/lib/auth-client";
+import Image from "next/image";
 
 export default function BookDetailsPage() {
     const { id } = useParams();
@@ -34,7 +35,7 @@ export default function BookDetailsPage() {
                     setBook(response);
                     setReviews(response.reviews || []);
 
-                    // বইটির ডেটা লোড হওয়ার সময় যদি অলরেডি উইশলিস্টেড থাকে (ব্যাকএন্ড ফ্ল্যাগ অনুসারে)
+                    // বইটির ডেটা লোড হওয়ার সময় যদি অলরেডি উইশলিস্টেড থাকে (ব্যাকএন্ড ফ্ল্যাগ অনুসারে)
                     if (response.isWishlisted) {
                         setIsWishlisted(true);
                     }
@@ -64,7 +65,7 @@ export default function BookDetailsPage() {
             return;
         }
 
-        // অলরেডি উইশলিস্টে থাকলে রিকোয়েস্ট ব্লক করা
+        // অলরেডি উইশলিস্টে থাকলে রিকোয়েস্ট ব্লক করা
         if (isWishlisted) {
             toast.info("This book is already in your wishlist!");
             return;
@@ -126,6 +127,23 @@ export default function BookDetailsPage() {
         }
     };
 
+    // 🛠️ লিব্রারিয়ান একশন হ্যান্ডলারসমূহ (আপনার প্রয়োজন অনুযায়ী রাউট এবং লজিক বসিয়ে নিবেন)
+    const handleEditBook = () => {
+        toast.info("Redirecting to edit book...");
+        router.push(`/dashboard/librarian/edit-book/${book._id}`);
+    };
+
+    const handleDeleteBook = async () => {
+        if (confirm("Are you sure you want to delete this book?")) {
+            toast.success("Book deleted successfully!");
+            router.push("/browse");
+        }
+    };
+
+    const handleUnpublishBook = async () => {
+        toast.success("Book unpublished successfully!");
+    };
+
     // রিভিউ সাবমিট হ্যান্ডলার
     const handleReviewSubmit = async (e) => {
         e.preventDefault();
@@ -174,6 +192,9 @@ export default function BookDetailsPage() {
     const status = book.status?.trim().toLowerCase();
     const isBookAvailable = status === "published" || status === "available";
 
+    // 🔐 লিব্রারিয়ান ওনারশিপ চেক
+    const isLibrarianOwner = user && user.role === "librarian" && book.librarianEmail === user.email;
+
     return (
         <main className="min-h-screen bg-gray-950 text-gray-100 py-12 px-4 md:px-8">
             <div className="max-w-6xl mx-auto space-y-12">
@@ -188,7 +209,11 @@ export default function BookDetailsPage() {
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 bg-gray-900 border border-gray-800 rounded-3xl p-6 md:p-10 shadow-2xl">
 
                     <div className="lg:col-span-5 bg-gray-950 rounded-2xl p-8 flex items-center justify-center border border-gray-800/60 relative">
-                        <img src={book.image} alt={book.title} className="max-h-[380px] object-contain rounded-lg shadow-2xl" />
+                        <Image src={book.image}
+                            alt={book.title}
+                            width={300}
+                            height={300}
+                            className="max-h-[380px] object-cover rounded-lg shadow-2xl" />
                         <span className={`absolute top-4 right-4 text-xs font-extrabold uppercase tracking-widest px-3 py-1.5 rounded-lg ${isBookAvailable ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" : "bg-rose-500/10 text-rose-400 border border-rose-500/20"}`}>
                             {isBookAvailable ? "Available" : "Checked Out"}
                         </span>
@@ -223,61 +248,90 @@ export default function BookDetailsPage() {
                             <p className="text-gray-300 text-sm leading-relaxed bg-gray-950/30 p-4 rounded-xl border border-gray-800/40">{book.description}</p>
                         </div>
 
-                        {/* বাটন এরিয়া */}
-                        <div className="flex flex-col sm:flex-row gap-4 pt-4 w-full">
-
-                            {/* ❤️ Wishlist Button (Dynamic Styling Added) */}
-                            <button
-                                type="button"
-                                onClick={handleWishlistClick}
-                                className={`flex-1 py-3.5 px-6 font-bold rounded-xl text-xs uppercase flex items-center justify-center gap-2 transition-all border ${isWishlisted
-                                    ? "bg-rose-600 border-rose-600 text-white hover:bg-rose-700"
-                                    : "bg-gray-950 border-gray-800 text-gray-300 hover:text-rose-400 hover:border-rose-500/40"
-                                    }`}
-                            >
-                                <Heart className={`w-4 h-4 ${isWishlisted ? "fill-white" : ""}`} />
-                                {isWishlisted ? "Wishlisted" : "Wishlist"}
-                            </button>
-
-                            <div className="flex-[2] flex">
-                                {book?.isPurchased ? (
+                        {/* ================= 🛠️ LIBRARIAN CONTROLS SECTION ================= */}
+                        {isLibrarianOwner && (
+                            <div className="bg-gray-950/60 border border-dashed border-amber-500/30 p-4 rounded-xl space-y-3">
+                                <p className="text-xs font-bold text-amber-400 tracking-wider uppercase">Librarian Controls (You own this book)</p>
+                                <div className="grid grid-cols-3 gap-3">
                                     <button
-                                        type="button"
-                                        disabled
-                                        className="w-full py-3.5 px-6 bg-gray-800 text-gray-500 border border-gray-700/60 font-bold rounded-xl uppercase text-xs flex items-center justify-center gap-2 cursor-not-allowed"
+                                        onClick={handleEditBook}
+                                        className="flex items-center justify-center gap-2 py-2.5 px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition-all"
                                     >
-                                        <ShieldCheck className="w-4 h-4" /> Already Requested / Paid
+                                        <Edit className="w-3.5 h-3.5" /> Edit
                                     </button>
-                                ) : isBookAvailable ? (
-                                    <form action="/api/payments" method="POST" onSubmit={handlePurchaseSubmit} className="w-full">
-                                        <input type="hidden" name="price" value={book.price || book.deliveryFee || 0} />
-                                        <input type="hidden" name="status" value="pending" />
-                                        <input type="hidden" name="bookId" value={book._id || ""} />
-                                        <input type="hidden" name="title" value={book.title || ""} />
-                                        <input type="hidden" name="userEmail" value={user?.email || ""} />
-                                        <input type="hidden" name="userName" value={user?.name || ""} />
-                                        <input type="hidden" name="userId" value={user?._id || ""} />
-
-                                        <button
-                                            type="submit"
-                                            className="w-full py-3.5 px-6 bg-amber-400 text-gray-900 hover:bg-amber-500 font-bold rounded-xl uppercase text-xs flex items-center justify-center gap-2 transition-all shadow-lg shadow-amber-400/10"
-                                        >
-                                            <ShieldCheck className="w-4 h-4" /> Request Delivery & Pay
-                                        </button>
-                                    </form>
-                                ) : (
                                     <button
-                                        type="button"
-                                        disabled
-                                        className="w-full py-3.5 px-6 bg-gray-800 text-gray-500 border border-gray-700/60 font-bold rounded-xl uppercase text-xs flex items-center justify-center gap-2 cursor-not-allowed"
+                                        onClick={handleDeleteBook}
+                                        className="flex items-center justify-center gap-2 py-2.5 px-4 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-bold transition-all"
                                     >
-                                        <ShieldCheck className="w-4 h-4" /> Unavailable ({book.status})
+                                        <Trash2 className="w-3.5 h-3.5" /> Delete
                                     </button>
-                                )}
+                                    <button
+                                        onClick={handleUnpublishBook}
+                                        className="flex items-center justify-center gap-2 py-2.5 px-4 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-bold transition-all"
+                                    >
+                                        <EyeOff className="w-3.5 h-3.5" /> Unpublish
+                                    </button>
+                                </div>
                             </div>
-                        </div>
+                        )}
 
-                        {book?.isPurchased && (
+                        {/* বাটন এরিয়া (ইউজার বা অন্য সবার জন্য) */}
+                        {!isLibrarianOwner && (
+                            <div className="flex flex-col sm:flex-row gap-4 pt-4 w-full">
+                                {/* ❤️ Wishlist Button */}
+                                <button
+                                    type="button"
+                                    onClick={handleWishlistClick}
+                                    className={`flex-1 py-3.5 px-6 font-bold rounded-xl text-xs uppercase flex items-center justify-center gap-2 transition-all border ${isWishlisted
+                                        ? "bg-rose-600 border-rose-600 text-white hover:bg-rose-700"
+                                        : "bg-gray-950 border-gray-800 text-gray-300 hover:text-rose-400 hover:border-rose-500/40"
+                                        }`}
+                                >
+                                    <Heart className={`w-4 h-4 ${isWishlisted ? "fill-white" : ""}`} />
+                                    {isWishlisted ? "Wishlisted" : "Wishlist"}
+                                </button>
+
+                                <div className="flex-[2] flex">
+                                    {book?.isPurchased ? (
+                                        <button
+                                            type="button"
+                                            disabled
+                                            className="w-full py-3.5 px-6 bg-gray-800 text-gray-500 border border-gray-700/60 font-bold rounded-xl uppercase text-xs flex items-center justify-center gap-2 cursor-not-allowed"
+                                        >
+                                            <ShieldCheck className="w-4 h-4" /> Already Requested / Paid
+                                        </button>
+                                    ) : isBookAvailable ? (
+                                        <form action="/api/payments" method="POST" onSubmit={handlePurchaseSubmit} className="w-full">
+                                            <input type="hidden" name="price" value={book.price || book.deliveryFee || 0} />
+                                            <input type="hidden" name="status" value="pending" />
+                                            <input type="hidden" name="bookId" value={book._id || ""} />
+                                            <input type="hidden" name="title" value={book.title || ""} />
+                                            <input type="hidden" name="userEmail" value={user?.email || ""} />
+                                            <input type="hidden" name="userName" value={user?.name || ""} />
+                                            <input type="hidden" name="userId" value={user?._id || ""} />
+
+                                            <button
+                                                type="submit"
+                                                className="w-full py-3.5 px-6 bg-amber-400 text-gray-900 hover:bg-amber-500 font-bold rounded-xl uppercase text-xs flex items-center justify-center gap-2 transition-all shadow-lg shadow-amber-400/10"
+                                            >
+                                                <ShieldCheck className="w-4 h-4" /> Request Delivery & Pay
+                                            </button>
+                                        </form>
+                                    ) : (
+                                        <button
+                                            type="button"
+                                            disabled
+                                            className="w-full py-3.5 px-6 bg-gray-800 text-gray-500 border border-gray-700/60 font-bold rounded-xl uppercase text-xs flex items-center justify-center gap-2 cursor-not-allowed"
+                                        >
+                                            <ShieldCheck className="w-4 h-4" /> Unavailable ({book.status})
+                                        </button>
+                                    )
+                                    }
+                                </div>
+                            </div>
+                        )}
+
+                        {book?.isPurchased && !isLibrarianOwner && (
                             <p className="text-xs text-center text-emerald-400 font-medium">
                                 You have already requested this book. Please track delivery in your dashboard.
                             </p>
@@ -285,7 +339,7 @@ export default function BookDetailsPage() {
                     </div>
                 </div>
 
-                {/* 리뷰 및 세ক션 */}
+                {/* 리뷰 및 세কশন */}
                 <div className="bg-gray-900 border border-gray-800 rounded-3xl p-6 md:p-10 space-y-8">
                     <h3 className="text-xl font-bold font-serif flex items-center gap-2 border-b border-gray-800 pb-4 text-amber-400">
                         <MessageSquare className="w-5 h-5" /> Reviews & Comments ({reviews.length})

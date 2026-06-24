@@ -3,10 +3,9 @@
 import { useEffect, useState } from "react";
 import { getAllBooks } from "@/lib/action/getbooks";
 import BookCard from "@/components/books/BookCard";
-// নোট: আপনার getAllBooks(queryParams) ফাংশনটি যেন কুয়েরি প্যারাম পাস করতে পারে।
 
 export default function BrowseBooks() {
-    // ফিল্টার এবং পেজিনেশন স্টেটস
+    // ফিল্টার এবং পেহিনেশন স্টেটস
     const [books, setBooks] = useState([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState("");
@@ -16,18 +15,17 @@ export default function BrowseBooks() {
     const [page, setPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
 
-    // ক্যাটাগরি লিস্ট (আপনার ডাটাবেজের সাথে মিল রেখে)
+    // 🛠️ ফিক্স: ক্যাটাগরি লিস্টের ভ্যালু ডাটাবেজের ভ্যালুর সাথে ম্যাচ করানো হলো
     const categories = [
-        "All",
-        "Sci-Fi & Technology",
-        "Fiction & Literature",
-        "Romance & Drama",
-        "Mystery & Thriller",
-        "Self-Development",
-        "Arts & Photography"
+        { label: "All Categories", value: "All" },
+        { label: "Fiction & Literature", value: "Fiction" },
+        { label: "Non-Fiction & Facts", value: "Non-Fiction" },
+        { label: "Mystery & Thriller", value: "Mystery" },
+        { label: "Sci-Fi & Technology", value: "Sci-Fi" },
+        { label: "Biography & History", value: "Biography" }
     ];
 
-    // ডাটা লোড করার ফাংশন (ফিল্টার ও পেজ চেঞ্জ হলে এটি আবার কল হবে)
+    // ডাটা লোড করার ফাংশন
     const loadBooks = async () => {
         setLoading(true);
         try {
@@ -38,12 +36,12 @@ export default function BrowseBooks() {
                 availability,
                 maxFee,
                 page,
-                limit: 6 // প্রতি পেজে ৬টি করে বই দেখাবে (রিকোয়ারমেন্ট অনুযায়ী ৬-১২)
+                limit: 6 // প্রতি পেজে ৬টি করে বই দেখাবে
             };
 
             const response = await getAllBooks(queryParams);
 
-            // ব্যাকএন্ড মেটা-ডাটা অনুযায়ী স্টেট সেট করা
+            // ব্যাকএন্ড মেটা-ডাটা অনুযায়ী স্টেট সেট করা
             if (response && response.success) {
                 setBooks(response.data || []);
                 setTotalPages(response.totalPages || 1);
@@ -71,6 +69,8 @@ export default function BrowseBooks() {
 
     return (
         <section className="py-12 px-4 max-w-7xl mx-auto text-white bg-gray-950 min-h-screen">
+
+            {/* Header Section */}
             <div className="text-center mb-10">
                 <h2 className="text-3xl font-bold font-serif text-gray-100 mb-2">
                     Browse Our Collection
@@ -84,12 +84,12 @@ export default function BrowseBooks() {
             {/* 🔍 অ্যাডভান্সড ফিল্টারিং প্যানেল */}
             <div className="bg-gray-900 border border-gray-800 p-6 rounded-xl mb-10 shadow-lg space-y-6 md:space-y-0 md:flex md:items-center md:gap-4 flex-wrap">
 
-                {/* ১. নাম দিয়ে সার্চ */}
+                {/* ১. নাম দিয়ে সার্চ */}
                 <div className="flex-1 min-w-[200px]">
                     <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Search by Name</label>
                     <input
                         type="text"
-                        placeholder="Search book title..."
+                        placeholder="Search book title or author..."
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
                         className="w-full bg-gray-950 border border-gray-800 text-gray-100 rounded-lg px-4 py-2.5 focus:outline-none focus:border-amber-400 text-sm transition-colors"
@@ -105,12 +105,12 @@ export default function BrowseBooks() {
                         className="w-full bg-gray-950 border border-gray-800 text-gray-100 rounded-lg px-3 py-2.5 focus:outline-none focus:border-amber-400 text-sm transition-colors"
                     >
                         {categories.map((cat, i) => (
-                            <option key={i} value={cat}>{cat}</option>
+                            <option key={i} value={cat.value}>{cat.label}</option>
                         ))}
                     </select>
                 </div>
 
-                {/* ৩. অ্যাভেইলেবility ফিল্টার */}
+                {/* ৩. অ্যাভেইলেবিলিটি ফিল্টার */}
                 <div className="w-full md:w-44">
                     <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Status</label>
                     <select
@@ -132,10 +132,10 @@ export default function BrowseBooks() {
                     </div>
                     <input
                         type="range"
-                        min="30"
+                        min="0" // ডেলিভারি ফি সর্বনিম্ন ০ থেকে শুরু হতে পারে
                         max="100"
                         value={maxFee}
-                        onChange={(e) => setMaxFee(e.target.value)}
+                        onChange={(e) => setMaxFee(Number(e.target.value))}
                         className="w-full accent-amber-400 cursor-pointer"
                     />
                 </div>
@@ -167,13 +167,13 @@ export default function BrowseBooks() {
                             totalReviews={book.totalReviews}
                             deliveryFee={book.deliveryFee}
                             status={book.status}
-                            dateAdded={book.dateAdded} // ডিটেইলস পেজের জন্য এটি প্রয়োজন
+                            dateAdded={book.createdAt} // ডাটাবেজে createdAt ফিল্ড রয়েছে
                         />
                     ))}
                 </div>
             )}
 
-            {/* 📄 সার্ভার সাইড পেজিনেশন নেভিগেশন কন্ট্রোল */}
+            {/* 📄 সার্ভার সাইড পেহিনেশন নেভিগেশন কন্ট্রোল */}
             {!loading && books.length > 0 && (
                 <div className="flex items-center justify-center gap-4 mt-12">
                     <button

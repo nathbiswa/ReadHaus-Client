@@ -1,8 +1,7 @@
-
 "use client";
 
-import React from "react";
-// HeroUI v3 কম্পোনেন্টসমূহ (Select সহ)
+import React, { useState } from "react";
+// HeroUI v3 কম্পোনেন্টসমূহ
 import {
     Form,
     Input,
@@ -11,8 +10,7 @@ import {
     Label,
     TextArea,
     Select,
-    ListBox,
-    TextField
+    ListBox
 } from "@heroui/react";
 import {
     Upload,
@@ -30,8 +28,10 @@ import { toast } from "react-toastify";
 export default function AddBookPage() {
     const { data: session } = authClient.useSession();
     const user = session?.user;
-
     const name = user?.name;
+
+    // 🛠️ ফিক্স ১: HeroUI কাস্টম সিলেক্টের ভ্যালু ট্র্যাক করার জন্য স্টেট
+    const [selectedCategory, setSelectedCategory] = useState("");
 
     // ক্যাটাগরির ডাটা লিস্ট
     const categories = [
@@ -49,46 +49,46 @@ export default function AddBookPage() {
         // ১. ফর্ম ডাটা অবজেক্ট তৈরি
         const formData = new FormData(e.target);
 
-        // ২. সাধারণ টেক্সট ডাটা আলাদা করা (title, author, description, category, deliveryFee)
+        // ২. সাধারণ টেক্সট ডাটা আলাদা করা
         const textData = Object.fromEntries(formData.entries());
-        console.log("Form Text Data:", textData);
 
-        // ৩. 🛠️ ফিক্স ১: সরাসরি formData থেকে আসল ফাইল অবজেক্টটি ধরুন (নামের ইনপুট অনুযায়ী)
+        // ৩. সরাসরি formData থেকে ফাইল অবজেক্টটি ধরা
         const imageFile = formData.get("image");
 
         if (!imageFile || imageFile.size === 0) {
-            alert("Please select a valid cover image!");
+            toast.error("Please select a valid cover image!");
             return;
         }
 
         try {
-            // ৪. আসল ফাইল অবজেক্টটি আপলোড ফাংশনে পাঠানো হলো
+            // ৪. ফাইল আপলোড
             const uploadedImageUrl = await imageUpload(imageFile);
-            console.log("Uploaded Image URL:", uploadedImageUrl);
 
             if (!uploadedImageUrl) {
-                alert("Image upload failed! Please check your ImgBB API Key or network.");
+                toast.error("Image upload failed! Please check your ImgBB API Key.");
                 return;
             }
 
-            // ৫. 🛠️ ফিক্স ২: ব্যাকএন্ডের জন্য ফাইনাল অবজেক্ট তৈরি
+            // ৫. 🛠️ ফিক্স ২: ব্যাকএন্ডের জন্য ফাইনাল ডাটা অবজেক্ট (ইমেইল এবং স্টেট ক্যাটাগরি সহ)
             const bookData = {
                 title: textData.title,
                 author: textData.author,
                 description: textData.description,
-                category: textData.category,
-                deliveryFee: textData.deliveryFee, // ব্যাকএন্ড এটাকে parseFloat করবে
-                image: uploadedImageUrl, // সরাসরি স্ট্রিং লিংকটি বসে যাবে
-                librarian: name || "Unknown Librarian" // আপনার সেশনের নাম
+                category: selectedCategory, // স্টেট থেকে আসল সিলেক্টেড ভ্যালু পাঠানো হলো
+                deliveryFee: textData.deliveryFee,
+                image: uploadedImageUrl,
+                librarian: name || "Unknown Librarian",
+                librarianEmail: user?.email || "", // 🔥 এখানে ইউজারের সেশন ইমেইল সরাসরি যুক্ত করা হলো
+                status: "Pending Approval"
             };
 
             // ৬. ব্যাকএন্ড এপিআই-তে ডাটা পাঠানো
             const result = await librarianAddBook(bookData);
-            console.log('Books Added Successfully:', result);
 
             if (result?.success) {
                 toast.success("Book added for approval successfully!");
                 e.target.reset(); // ফর্মের সব ইনপুট খালি করে দেবে
+                setSelectedCategory(""); // ক্যাটাগরি স্টেট রিসেট
             } else {
                 toast.error("Failed to add book to database!");
             }
@@ -120,7 +120,7 @@ export default function AddBookPage() {
 
                         {/* Title & Author Grid */}
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 w-full">
-                            {/* ১. বইয়ের নাম ইনপুট */}
+                            {/* ১. বইয়ের নাম ইনপুট */}
                             <div className="flex flex-col gap-2">
                                 <Label htmlFor="book-title" className="text-xs uppercase tracking-wider font-bold text-slate-600">Title *</Label>
                                 <Input
@@ -154,7 +154,6 @@ export default function AddBookPage() {
                         </div>
 
                         {/* Description Field */}
-                        {/* ৩. বইয়ের বর্ণনা ইনপুট */}
                         <div className="flex flex-col gap-2 w-full">
                             <Label htmlFor="book-desc" className="text-xs uppercase tracking-wider font-bold text-slate-600">Description *</Label>
                             <TextArea
@@ -174,7 +173,7 @@ export default function AddBookPage() {
                         {/* Category & Delivery Fee Grid */}
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 w-full">
 
-                            {/* ৪. ক্যাটাগরি সিলেক্ট (সিলেক্ট প্রবলেম ফিক্সড এবং name="category" যুক্ত) */}
+                            {/* ৩. ক্যাটাগরি সিলেক্ট (onSelectionChange দিয়ে স্টেট কানেক্ট করা হয়েছে) */}
                             <div className="flex flex-col gap-2">
                                 <Label htmlFor="book-category" className="text-xs uppercase tracking-wider font-bold text-slate-600">Category *</Label>
                                 <Select
@@ -183,6 +182,8 @@ export default function AddBookPage() {
                                     className="w-full"
                                     placeholder="Select a category"
                                     variant="bordered"
+                                    selectedKeys={selectedCategory ? [selectedCategory] : []}
+                                    onSelectionChange={(keys) => setSelectedCategory(Array.from(keys)[0])}
                                     classNames={{
                                         trigger: "h-12 border-slate-200 hover:border-indigo-400 focus-within:!border-indigo-600 rounded-xl transition-all bg-transparent"
                                     }}
@@ -209,7 +210,7 @@ export default function AddBookPage() {
                                 </Select>
                             </div>
 
-                            {/* ৫. ডেলিভারি ফি ইনপুট */}
+                            {/* ৪. ডেলিভারি ফি ইনপুট */}
                             <div className="flex flex-col gap-2">
                                 <Label htmlFor="delivery-fee" className="text-xs uppercase tracking-wider font-bold text-slate-600">Delivery Fee ($) *</Label>
                                 <Input
@@ -229,30 +230,20 @@ export default function AddBookPage() {
                         </div>
 
                         {/* Image Upload Area Box */}
-                        {/* ৬. ইমেজ আপলোড করার মডার্ন বক্স */}
-                        {/* <div className="flex flex-col gap-2 w-full">
-                            <Label className="text-xs uppercase tracking-wider font-bold text-slate-600">Cover Image</Label>
-
-                            <div className="border-2 border-dashed border-indigo-100 rounded-2xl p-8 flex flex-col items-center justify-center gap-3 bg-indigo-50/10 hover:bg-indigo-50/30 hover:border-indigo-300 transition-all cursor-pointer min-h-[180px] group shadow-inner">
-                                <div className="p-3.5 bg-white rounded-2xl shadow-sm border border-slate-100 group-hover:scale-110 transition-transform duration-200">
-
-                                    <TextField className="w-full" type="file" variant="secondary">
-                                        <Input type="file" name='image' />
-                                    </TextField>
-                                </div>
-                                <div className="text-center">
-                                    <p className="text-sm font-semibold text-slate-700">Click to upload or drag and drop</p>
-                                    <p className="text-xs text-slate-400 mt-1">Supports PNG, JPG (Max size 5MB)</p>
-                                </div>
+                        <div className="flex flex-col gap-2">
+                            <Label htmlFor="image" className="text-xs uppercase tracking-wider font-bold text-slate-600">Upload Cover Image *</Label>
+                            <div className="flex items-center justify-center w-full">
+                                <label htmlFor="image" className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-slate-200 hover:border-indigo-400 rounded-2xl cursor-pointer bg-slate-50/50 hover:bg-slate-50 transition-all">
+                                    <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                                        <Upload className="w-8 h-8 text-slate-400 mb-2" />
+                                        <p className="text-sm text-slate-500">Click to upload book cover</p>
+                                    </div>
+                                    <input type="file" name="image" id="image" className="hidden" accept="image/*" required />
+                                </label>
                             </div>
-                        </div> */}
-                        <div>
-                            <label htmlFor="image">Upload Image</label>
-                            <input type="file" name="image" id="image" />
                         </div>
 
                         {/* Submit Button */}
-                        {/* ৭. আকর্ষণীয় সাবমিট বাটন */}
                         <Button
                             type="submit"
                             className="bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white font-bold py-6 rounded-xl shadow-lg shadow-indigo-100 hover:shadow-xl hover:shadow-indigo-200/80 transition-all mt-4 w-full text-base tracking-wide"

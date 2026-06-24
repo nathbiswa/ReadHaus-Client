@@ -2,12 +2,12 @@ import { authClient } from "../auth-client";
 
 
 
-const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL;
+const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:5000';
 
 export const librarianAddBook = async (bookData) => {
     const { data: token } = await authClient.token();
 
-    const res = await fetch(`${BASE_URL}/librarian/addbook`, {
+    const res = await fetch(`${BASE_URL}/api/librarian/addbook`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
