@@ -66,7 +66,7 @@ const DashboardSidebar = () => {
     );
 
     return (
-        <div className="flex flex-col md:flex-row min-h-screen">
+        <div className="flex flex-col md:flex-row md:min-h-screen">
 
             {/* 📱 ১. মোবাইল টগল বাটন ও টপ বার (শুধুমাত্র মোবাইলে দেখাবে) */}
             <div className="flex items-center justify-between p-4 border-b border-slate-200 bg-white md:hidden w-full sticky top-0 z-40">
@@ -86,7 +86,6 @@ const DashboardSidebar = () => {
             {/* 💻 ২. মেইন ডেক্সটপ সাইডবার (মোবাইলে hidden থাকবে, বড় স্ক্রিনে flex হবে) */}
             <nav className="hidden md:flex flex-col gap-1 w-[320px] min-h-screen border-r-2 border-slate-200 p-4 bg-white sticky top-0 h-screen">
                 <ProfileSection />
-
                 {navItems?.map((item) => {
                     const isActive = pathname === item.link;
                     return (
