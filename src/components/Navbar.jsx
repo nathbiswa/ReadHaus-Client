@@ -171,9 +171,9 @@ const Navbar = () => {
 
                                         <Dropdown.Menu onAction={(key) => console.log(`Selected: ${key}`)}>
                                             <Dropdown.Item id="dashboard" textValue="Dashboard">
-                                                <Link className="flex items-center gap-2 w-full" href={`/dashboard/${user?.role || "user"}/overview`}>
+                                                <Link className="flex items-center gap-2 w-full" href={`/dashboard/${user?.role}/overview`}>
                                                     <MdDashboard className="text-lg" />
-                                                    <Label className="cursor-pointer">Dashboard ({user?.role || "user"})</Label>
+                                                    <Label className="cursor-pointer">Dashboard ({user?.role})</Label>
                                                 </Link>
                                             </Dropdown.Item>
 
