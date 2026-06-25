@@ -29,7 +29,7 @@
     "react-spinners": "^0.17.0",
     "react-toastify": "^11.1.0",
     "recharts": "^3.9.0",
-    "stripe": "^22.2.2"
+    "stripe": "^22.2.3"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

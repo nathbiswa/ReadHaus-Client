@@ -31,14 +31,13 @@ export default async function Success({ searchParams }) {
 
         if (status === 'complete') {
             try {
-
+                // 📌 এখানে status পরিবর্তন করে "pending" করে দেওয়া হয়েছে
                 await getDeliveryData({
                     ...metadata,
                     sessionId: session_id,
-                    status: "complete"
+                    status: "pending"
                 });
             } catch (dbError) {
-
                 console.error("Database action failed but payment was completed safely:", dbError.message);
             }
 
@@ -48,11 +47,11 @@ export default async function Success({ searchParams }) {
 
                         {/* সাকসেস মেসেজ */}
                         <div className="space-y-2">
-                            <h1 className="text-2xl font-bold text-emerald-400 tracking-tight">
-                                Payment Successful!
+                            <h1 className="text-2xl font-bold text-amber-400 tracking-tight">
+                                Request Submitted Successfully!
                             </h1>
                             <p className="text-sm text-gray-400">
-                                Thank you! Your delivery request has been successfully recorded for the Admin and Librarian.
+                                Thank you! Your delivery request has been successfully recorded and is currently pending review by the Admin and Librarian.
                             </p>
                         </div>
 
@@ -66,9 +65,10 @@ export default async function Success({ searchParams }) {
                                 <p className="text-sm font-semibold text-gray-200 truncate">{bookTitle}</p>
                             </div>
                             <div className="space-y-1">
-                                <p className="text-xs text-gray-500">Payment Status</p>
-                                <p className="text-xs font-extrabold uppercase tracking-widest text-emerald-400 bg-emerald-500/10 w-fit px-2 py-0.5 rounded border border-emerald-500/20">
-                                    Paid
+                                <p className="text-xs text-gray-500">Request Status</p>
+                                {/* 📌 UI-তেও ব্যাজটি 'Pending' এবং Amber কালার করা হয়েছে */}
+                                <p className="text-xs font-extrabold uppercase tracking-widest text-amber-400 bg-amber-400/10 w-fit px-2 py-0.5 rounded border border-amber-400/20">
+                                    Pending
                                 </p>
                             </div>
                         </div>
@@ -76,7 +76,7 @@ export default async function Success({ searchParams }) {
                         {/* ইমেইল ও সাপোর্ট ইনফো */}
                         <div className="space-y-3 text-sm text-gray-300 leading-relaxed bg-gray-950/30 p-4 rounded-xl border border-gray-800/40 text-left">
                             <p className="text-xs text-gray-400">
-                                A confirmation email will be sent to <span className="text-gray-200 font-medium font-mono">{customerEmail}</span> shortly.
+                                A confirmation updates will be shared with <span className="text-gray-200 font-medium font-mono">{customerEmail}</span> shortly.
                             </p>
                             <p className="text-xs text-gray-500 border-t border-gray-800/60 pt-2">
                                 If you have any questions, please email{' '}

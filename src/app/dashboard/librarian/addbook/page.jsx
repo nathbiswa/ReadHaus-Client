@@ -60,6 +60,11 @@ export default function AddBookPage() {
             return;
         }
 
+        if (!selectedCategory) {
+            toast.warn("Please select a book category!");
+            return;
+        }
+
         try {
             // ৪. ফাইল আপলোড
             const uploadedImageUrl = await imageUpload(imageFile);
@@ -69,16 +74,16 @@ export default function AddBookPage() {
                 return;
             }
 
-            // ৫. 🛠️ ফিক্স ২: ব্যাকএন্ডের জন্য ফাইনাল ডাটা অবজেক্ট (ইমেইল এবং স্টেট ক্যাটাগরি সহ)
+            // ৫. ব্যাকএন্ডের জন্য ফাইনাল ডাটা অবজেক্ট (ইমেইল এবং স্টেট ক্যাটাগরি সহ)
             const bookData = {
                 title: textData.title,
                 author: textData.author,
                 description: textData.description,
                 category: selectedCategory, // স্টেট থেকে আসল সিলেক্টেড ভ্যালু পাঠানো হলো
-                deliveryFee: textData.deliveryFee,
+                deliveryFee: Number(textData.deliveryFee),
                 image: uploadedImageUrl,
                 librarian: name || "Unknown Librarian",
-                librarianEmail: user?.email || "", // 🔥 এখানে ইউজারের সেশন ইমেইল সরাসরি যুক্ত করা হলো
+                librarianEmail: user?.email || "", // ইউজারের সেশন ইমেইল সরাসরি যুক্ত করা হলো
                 status: "Pending Approval"
             };
 
@@ -88,7 +93,7 @@ export default function AddBookPage() {
             if (result?.success) {
                 toast.success("Book added for approval successfully!");
                 e.target.reset(); // ফর্মের সব ইনপুট খালি করে দেবে
-                setSelectedCategory(""); // ক্যাটাগরি স্টেট রিসেট
+                setSelectedCategory(""); // ক্যাটাগরি স্টেট সেফলি রিসেট
             } else {
                 toast.error("Failed to add book to database!");
             }
@@ -173,7 +178,7 @@ export default function AddBookPage() {
                         {/* Category & Delivery Fee Grid */}
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 w-full">
 
-                            {/* ৩. ক্যাটাগরি সিলেক্ট (onSelectionChange দিয়ে স্টেট কানেক্ট করা হয়েছে) */}
+                            {/* ৩. ক্যাটাগরি সিলেক্ট (🛠️ সেফ নাল-চেক লজিক ফিক্স) */}
                             <div className="flex flex-col gap-2">
                                 <Label htmlFor="book-category" className="text-xs uppercase tracking-wider font-bold text-slate-600">Category *</Label>
                                 <Select
@@ -183,7 +188,13 @@ export default function AddBookPage() {
                                     placeholder="Select a category"
                                     variant="bordered"
                                     selectedKeys={selectedCategory ? [selectedCategory] : []}
-                                    onSelectionChange={(keys) => setSelectedCategory(Array.from(keys)[0])}
+                                    // 🚀 ফিক্স: keys অবজেক্টটি রিসেট টাইমে null বা ফাকা হলেও এটি ক্র্যাশ করবে না
+                                    onSelectionChange={(keys) => {
+                                        if (keys) {
+                                            const val = Array.from(keys)[0];
+                                            if (val) setSelectedCategory(String(val));
+                                        }
+                                    }}
                                     classNames={{
                                         trigger: "h-12 border-slate-200 hover:border-indigo-400 focus-within:!border-indigo-600 rounded-xl transition-all bg-transparent"
                                     }}
