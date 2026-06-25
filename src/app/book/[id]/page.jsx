@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, use } from "react"; // 👈 'use' হুক ইমপোর্ট করা হয়েছে
 import { useParams, useRouter } from "next/navigation";
 import { Star, Heart, ArrowLeft, ShieldCheck, MessageSquare, Send, DollarSign, Edit, Trash2, EyeOff } from "lucide-react";
 import { getSingleBook } from "@/lib/action/getbooks";
@@ -8,12 +8,17 @@ import { toast } from "react-toastify";
 import { authClient } from "@/lib/auth-client";
 import Image from "next/image";
 
-export default function BookDetailsPage() {
-    const { id } = useParams();
+export default function BookDetailsPage({ params: paramsPromise }) { // 👈 Next.js এর বেস্ট প্র্যাকটিস অনুযায়ী প্রপস নেওয়া হলো
+    // Next.js-এর নতুন নিয়ম অনুযায়ী params প্রমিজ আনলক করা হচ্ছে
+    const params = paramsPromise ? use(paramsPromise) : useParams();
+    const id = params?.id;
+
     const router = useRouter();
     const [book, setBook] = useState(null);
     const [loading, setLoading] = useState(true);
-    const [isWishlisted, setIsWishlisted] = useState(false); // ❤️ উইশলিস্ট স্টেট
+    const [deleteLoading, setDeleteLoading] = useState(false);
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isWishlisted, setIsWishlisted] = useState(false);
 
     // রিভিউ ও কমেন্ট স্টেট
     const [reviews, setReviews] = useState([]);
@@ -26,19 +31,27 @@ export default function BookDetailsPage() {
 
     useEffect(() => {
         const fetchBookDetails = async () => {
+            // আইডি যতক্ষণ না নিশ্চিতভাবে পাওয়া যাচ্ছে, ততক্ষণ ডেটা ফেচ হবে না
+            if (!id || typeof id !== "string") {
+                return;
+            }
+
             try {
                 setLoading(true);
                 const userEmail = user?.email || "";
+
+                // আপনার অ্যাকশন ফাংশনটি কল হচ্ছে
                 const response = await getSingleBook(id, userEmail);
 
                 if (response) {
                     setBook(response);
                     setReviews(response.reviews || []);
 
-                    // বইটির ডেটা লোড হওয়ার সময় যদি অলরেডি উইশলিস্টেড থাকে (ব্যাকএন্ড ফ্ল্যাগ অনুসারে)
                     if (response.isWishlisted) {
                         setIsWishlisted(true);
                     }
+                } else {
+                    console.error("Backend returned null or undefined for ID:", id);
                 }
             } catch (error) {
                 console.error("Error fetching book details:", error);
@@ -48,10 +61,10 @@ export default function BookDetailsPage() {
             }
         };
 
-        if (id) fetchBookDetails();
+        fetchBookDetails();
     }, [id, user?.email]);
 
-    // ❤️ উইশলিস্ট হ্যান্ডলার (ফিক্সড ও ডাইনামিক কালার লজিক)
+    // ❤️ উইশলিস্ট হ্যান্ডলার
     const handleWishlistClick = async () => {
         if (!user) {
             toast.info("Please login to add this book to your wishlist!");
@@ -59,13 +72,11 @@ export default function BookDetailsPage() {
             return;
         }
 
-        // 🔒 চেক করা হচ্ছে ইউজারের রোল readers কিনা
         if (user?.role !== "readers") {
             toast.error("Only users with 'readers' role can add to wishlist!");
             return;
         }
 
-        // অলরেডি উইশলিস্টে থাকলে রিকোয়েস্ট ব্লক করা
         if (isWishlisted) {
             toast.info("This book is already in your wishlist!");
             return;
@@ -97,7 +108,7 @@ export default function BookDetailsPage() {
 
             if (res.ok && data.success) {
                 toast.success("Added to wishlist successfully!");
-                setIsWishlisted(true); // 🚀 সাকসেস হলে স্টেট ট্রু করে লাল কালার ট্রিগার করা হলো
+                setIsWishlisted(true);
             } else {
                 toast.error(data.message || "Failed to add to wishlist");
                 if (data.message?.includes("already")) {
@@ -130,52 +141,87 @@ export default function BookDetailsPage() {
     // 🛠️ লিব্রারিয়ান একশন হ্যান্ডলারসমূহ 
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:5000";
 
-    // ১. এডিট বাটন (ইউজারকে এডিট ফর্মে রিডাইরেক্ট করবে)
     const handleEditBook = () => {
-        router.push(`/dashboard/librarian/edit-book/${book._id}`);
+        router.push(`/dashboard/librarian/edit-book/${id}`);
     };
 
-    // ২. ডিলিট বাটন (আপনার app.delete "/api/librarian/books/:id" রুট কল করবে)
-    const handleDeleteBook = async () => {
-        if (!confirm("Are you sure you want to delete this book permanently?")) return;
+    // ডিলিট কনফার্ম করার আসল ফাংশন
+    const handleDeleteBookConfirm = async () => {
+        let token = null;
 
         try {
-            const res = await fetch(`${baseUrl}/api/librarian/books/${book._id}`, {
-                method: "DELETE"
+            const { data } = await authClient.token();
+            if (data) token = data.token;
+        } catch (err) {
+            console.error(err);
+        }
+
+        if (!token) {
+            toast.error("Authentication token missing!");
+            return;
+        }
+
+        setDeleteLoading(true);
+        try {
+            const res = await fetch(`${baseUrl}/api/librarian/books/${id}`, {
+                method: "DELETE",
+                headers: {
+                    "Authorization": `Bearer ${token}`,
+                },
             });
-            const data = await res.json();
-            if (data.success) {
-                toast.success("Book deleted successfully!");
+
+            const responseData = await res.json();
+
+            if (res.ok && responseData.success) {
+                toast.success("Book deleted successfully! 🗑️");
+                setIsModalOpen(false);
                 router.push("/browse");
             } else {
-                toast.error(data.message);
+                toast.error(responseData.message || "Failed to delete book.");
             }
         } catch (error) {
-            toast.error("Something went wrong!");
+            console.error(error);
+            toast.error("Something went wrong while deleting!");
+        } finally {
+            setDeleteLoading(false);
         }
     };
 
-    // ৩. আনপাবলিশ বাটন (আপনার app.patch "/api/librarian/books/:id/toggle-status" রুট কল করবে)
+    // আনপাবলিশ বাটন
     const handleUnpublishBook = async () => {
+        let token = null;
+
         try {
-            const res = await fetch(`${baseUrl}/api/librarian/books/${book._id}/toggle-status`, {
+            const { data } = await authClient.token();
+            if (data) token = data.token;
+        } catch (err) {
+            console.error("Failed to fetch token:", err);
+        }
+
+        if (!token) {
+            toast.error("Authentication token missing!");
+            return;
+        }
+
+        try {
+            const res = await fetch(`${baseUrl}/api/librarian/books/${id}/toggle-status`, {
                 method: "PATCH",
                 headers: {
                     "Content-Type": "application/json",
-                    // আপনার এই রুটে verifyToken আছে, তাই টোকেন পাঠানো বাধ্যতামূলক
-                    "Authorization": `Bearer ${localStorage.getItem("token")}`
+                    "Authorization": `Bearer ${token}`
                 },
-                body: JSON.stringify({ status: "Unpublished" }) // এখানে স্ট্যাটাস পাঠিয়ে দিচ্ছেন
+                body: JSON.stringify({ status: "Unpublished" })
             });
 
             const data = await res.json();
             if (data.success) {
-                toast.success("Book unpublished successfully!");
-                setBook(prev => ({ ...prev, status: 'Unpublished' })); // UI আপডেট
+                toast.success("Book unpublished successfully! 👁️‍🗨️");
+                setBook(prev => ({ ...prev, status: 'Unpublished' }));
             } else {
-                toast.error(data.message);
+                toast.error(data.message || "Failed to unpublish book.");
             }
         } catch (error) {
+            console.error("Unpublish error:", error);
             toast.error("Failed to unpublish book.");
         }
     };
@@ -208,7 +254,8 @@ export default function BookDetailsPage() {
         toast.success("Review submitted successfully!");
     };
 
-    if (loading) {
+    // আইডি পাওয়া যাচ্ছে কি না তা ব্যাকগ্রাউন্ডে চেক করার জন্য ১ সেকেন্ডের বাফার লোডিং
+    if (loading || !id) {
         return (
             <div className="min-h-screen bg-gray-950 flex items-center justify-center text-white">
                 <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-amber-400"></div>
@@ -219,20 +266,19 @@ export default function BookDetailsPage() {
     if (!book) {
         return (
             <div className="min-h-screen bg-gray-950 text-white text-center py-20">
-                <p className="mb-4">Book not found!</p>
-                <button onClick={() => router.back()} className="text-amber-400 font-bold">Go Back</button>
+                <p className="mb-4 text-xl font-semibold text-rose-400">Book not found!</p>
+                <p className="text-sm text-gray-500 mb-6">Requested ID: <span className="text-gray-300 font-mono bg-gray-900 px-2 py-1 rounded">{id}</span></p>
+                <button onClick={() => router.back()} className="text-amber-400 font-bold hover:underline">Go Back</button>
             </div>
         );
     }
 
     const status = book.status?.trim().toLowerCase();
     const isBookAvailable = status === "published" || status === "available";
-
-    // 🔐 লিব্রারিয়ান ওনারশিপ চেক (বইয়ের ওনার ইমেইল এবং কারেন্ট ইউজারের ইমেইল মিললে ট্রু হবে)
     const isLibrarianOwner = user && user.role === "librarian" && book.librarianEmail === user.email;
 
     return (
-        <main className="min-h-screen bg-gray-950 text-gray-100 py-12 px-4 md:px-8">
+        <main className="min-h-screen bg-gray-950 text-gray-100 py-12 px-4 md:px-8 relative">
             <div className="max-w-6xl mx-auto space-y-12">
 
                 <button
@@ -284,9 +330,8 @@ export default function BookDetailsPage() {
                             <p className="text-gray-300 text-sm leading-relaxed bg-gray-950/30 p-4 rounded-xl border border-gray-800/40">{book.description}</p>
                         </div>
 
-                        {/* ================= 🛠️ LIBRARIAN CONTROLS SECTION ================= */}
-                        {/* যদি কারেন্ট ইউজার এই বইয়ের ওনার লাইব্রেরিয়ান হয়, তবে এই বাটনগুলো দেখাবে */}
-                        {isLibrarianOwner ? (
+                        {/* 🛠️ LIBRARIAN CONTROLS SECTION */}
+                        {isLibrarianOwner && (
                             <div className="bg-gray-950/60 border border-dashed border-amber-500/30 p-4 rounded-xl space-y-3">
                                 <p className="text-xs font-bold text-amber-400 tracking-wider uppercase">Librarian Controls (You own this book)</p>
                                 <div className="grid grid-cols-3 gap-3">
@@ -296,12 +341,14 @@ export default function BookDetailsPage() {
                                     >
                                         <Edit className="w-3.5 h-3.5" /> Edit
                                     </button>
+
                                     <button
-                                        onClick={handleDeleteBook}
+                                        onClick={() => setIsModalOpen(true)}
                                         className="flex items-center justify-center gap-2 py-2.5 px-4 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-bold transition-all"
                                     >
                                         <Trash2 className="w-3.5 h-3.5" /> Delete
                                     </button>
+
                                     <button
                                         onClick={handleUnpublishBook}
                                         className="flex items-center justify-center gap-2 py-2.5 px-4 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-bold transition-all"
@@ -310,11 +357,11 @@ export default function BookDetailsPage() {
                                     </button>
                                 </div>
                             </div>
-                        ) : (
-                            /* বাটন এরিয়া (ইউজার বা অন্য সবার জন্য - যখন কারেন্ট ইউজার ওনার লাইব্রেরিয়ান না) */
+                        )}
+
+                        {!isLibrarianOwner && (
                             <div className="space-y-3">
                                 <div className="flex flex-col sm:flex-row gap-4 pt-4 w-full">
-                                    {/* ❤️ Wishlist Button */}
                                     <button
                                         type="button"
                                         onClick={handleWishlistClick}
@@ -364,12 +411,6 @@ export default function BookDetailsPage() {
                                         )}
                                     </div>
                                 </div>
-
-                                {book?.isPurchased && (
-                                    <p className="text-xs text-center text-emerald-400 font-medium">
-                                        You have already requested this book. Please track delivery in your dashboard.
-                                    </p>
-                                )}
                             </div>
                         )}
                     </div>
@@ -410,11 +451,6 @@ export default function BookDetailsPage() {
                                 <Send className="w-4 h-4" />
                             </button>
                         </div>
-                        {!book?.isPurchased && (
-                            <p className="text-xs text-rose-400 font-medium pt-1">
-                                * Only verified buyers of this book can submit a review.
-                            </p>
-                        )}
                     </form>
 
                     <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2">
@@ -432,6 +468,23 @@ export default function BookDetailsPage() {
                     </div>
                 </div>
             </div>
+
+            {/* 🗑️ DELETE CONFIRMATION MODAL */}
+            {isModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm px-4">
+                    <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 max-w-sm w-full shadow-2xl text-center">
+                        <div className="flex items-center justify-center w-12 h-12 mx-auto bg-rose-500/10 rounded-full mb-4 border border-rose-500/20">
+                            <Trash2 className="w-6 h-6 text-rose-500" />
+                        </div>
+                        <h3 className="text-lg font-bold text-gray-100 mb-2">Delete Book?</h3>
+                        <p className="text-sm text-gray-400 mb-6">Are you sure you want to permanently delete <span className="text-gray-200 font-semibold">"{book.title}"</span>?</p>
+                        <div className="flex gap-3 justify-center">
+                            <button onClick={() => setIsModalOpen(false)} className="flex-1 py-2 px-4 text-sm font-semibold text-gray-300 bg-gray-800 rounded-xl hover:bg-gray-700">Cancel</button>
+                            <button onClick={handleDeleteBookConfirm} disabled={deleteLoading} className="flex-1 py-2 px-4 text-sm font-semibold text-white bg-rose-600 rounded-xl hover:bg-rose-700">{deleteLoading ? "Deleting..." : "Delete"}</button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </main>
     );
 }
