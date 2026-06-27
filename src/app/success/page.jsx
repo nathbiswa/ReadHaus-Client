@@ -31,7 +31,7 @@ export default async function Success({ searchParams }) {
 
         if (status === 'complete') {
             try {
-                // 📌 এখানে status পরিবর্তন করে "pending" করে দেওয়া হয়েছে
+                // 📌 এখানে status পরিবর্তন করে ছোট হাতের অক্ষরে "pending" রাখা হয়েছে
                 await getDeliveryData({
                     ...metadata,
                     sessionId: session_id,
@@ -66,7 +66,6 @@ export default async function Success({ searchParams }) {
                             </div>
                             <div className="space-y-1">
                                 <p className="text-xs text-gray-500">Request Status</p>
-                                {/* 📌 UI-তেও ব্যাজটি 'Pending' এবং Amber কালার করা হয়েছে */}
                                 <p className="text-xs font-extrabold uppercase tracking-widest text-amber-400 bg-amber-400/10 w-fit px-2 py-0.5 rounded border border-amber-400/20">
                                     Pending
                                 </p>

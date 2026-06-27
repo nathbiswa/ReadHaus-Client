@@ -2,34 +2,38 @@
 
 import { revalidatePath } from "next/cache";
 
-// @/lib/action/payments
-export const getLibrarianDeliveries = async (userEmail) => {
+/**
+ * ১. লিব্রারিয়ানের আন্ডারে থাকা ডেলিভারি ডাটা গেট করা
+ */
+export const getLibrarianDeliveries = async (userEmail, token) => {
     try {
-        // 🟢 নিশ্চিত হোন process.env.NEXT_PUBLIC_API_URL এর মান আপনার .env ফাইলে ঠিকঠাক আছে (যেমন: http://localhost:5000)
         const baseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
-        const response = await fetch(`${baseUrl}/api/librarian-deliveries?email=${userEmail}`, {
+        const response = await fetch(`${baseUrl}/api/librarian/deliveries?email=${userEmail}`, {
             method: "GET",
-            headers: { "Content-Type": "application/json" },
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${token}`
+            },
         });
 
-        if (!response.ok) {
-            throw new Error(`Server responded with status: ${response.status}`);
-        }
+        if (!response.ok) throw new Error(`Status: ${response.status}`);
+        const resData = await response.json();
 
-        return await response.json();
+        return resData.data || resData.deliveries || [];
     } catch (error) {
-        console.error("Next.js Server Action Error:", error);
-        return []; // ক্র্যাশ এড়াতে খালি অ্যারে রিটার্ন করুন
+        console.error("Server Action Error:", error);
+        return [];
     }
 };
 
 /**
- * ২. লিব্রারিয়ানের অ্যাকশন অনুযায়ী স্ট্যাটাস পরিবর্তন করা
+ * ২. লিব্রারিয়ানের অ্যাকশন অনুযায়ী স্ট্যাটাস পরিবর্তন করা
  */
 export async function updateLibrarianDeliveryStatus(id, newStatus, token) {
     try {
-        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:5000";
+        const baseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+        const formattedStatus = newStatus.charAt(0).toUpperCase() + newStatus.slice(1);
 
         const res = await fetch(`${baseUrl}/api/librarian/deliveries/${id}`, {
             method: "PATCH",
@@ -37,29 +41,28 @@ export async function updateLibrarianDeliveryStatus(id, newStatus, token) {
                 "Content-Type": "application/json",
                 "Authorization": `Bearer ${token}`
             },
-            body: JSON.stringify({ status: newStatus }) // ব্যাকএন্ডে প্রথম অক্ষর বড় হাতের হতে হবে (যেমন: "Dispatched")
+            body: JSON.stringify({ status: formattedStatus })
         });
 
         const result = await res.json();
-
-        if (!res.ok) {
-            throw new Error(result.message || "Failed to update status");
-        }
+        if (!res.ok) throw new Error(result.message || "Failed to update status");
 
         revalidatePath("/dashboard/librarian/manage-deliveries");
         return { success: true, message: result.message };
     } catch (error) {
-        console.error("Error in updateLibrarianDeliveryStatus action:", error.message);
+        console.error("Update Action Error:", error.message);
         return { success: false, message: error.message };
     }
 }
 
 /**
- * ৩. আপনার ওল্ড সাকসেস পেজ অ্যাকশন (যা অলরেডি ঠিক আছে)
+ * ৩. আপনার ওল্ড সাকসেস পেজ অ্যাকশন (এটি আগের মতোই অক্ষত থাকবে)
  */
 export async function getDeliveryData(dataObject) {
     try {
-        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:5000";
+        // এখানেও নিরাপদ থাকার জন্য NEXT_PUBLIC_API_URL ব্যবহার করা ভালো
+        const baseUrl = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:5000";
+
         const res = await fetch(`${baseUrl}/api/deliveries/update-status`, {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
@@ -67,7 +70,7 @@ export async function getDeliveryData(dataObject) {
         });
         return await res.json();
     } catch (error) {
-        console.error(error);
+        console.error("Error in getDeliveryData:", error);
         return { success: false };
     }
 }

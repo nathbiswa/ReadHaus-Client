@@ -1,178 +1,232 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { toast } from "react-toastify";
-import { Calendar, BookOpen, User, CheckCircle2, Truck } from "lucide-react";
-import { getLibrarianDeliveries, updateLibrarianDeliveryStatus } from "@/lib/action/payments";
+import { useEffect, useState, useCallback } from "react";
+import { toast } from "react-hot-toast";
+import { updateLibrarianDeliveryStatus } from "@/lib/action/payments";
 import { authClient } from "@/lib/auth-client";
 
-export default function ManageDeliveriesPage() {
-    const { data: session, isPending } = authClient.useSession();
-    const user = session?.user;
-    const userEmail = user?.email || "";
-
+export default function ManageDeliveries() {
     const [deliveries, setDeliveries] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [updatingId, setUpdatingId] = useState(null);
 
-    // ডাটা লোড করার ফাংশন
-    const loadDeliveries = async () => {
+    // Better-Auth থেকে ইউজার সেশন নেওয়া হচ্ছে
+    const { data: session, isPending: authLoading } = authClient.useSession();
+    const userEmail = session?.user?.email;
+
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+
+    const loadDeliveries = useCallback(async () => {
         if (!userEmail) return;
+
+        let token = null;
+        try {
+            const { data } = await authClient.token();
+            if (data) token = data.token;
+        } catch (err) {
+            console.error("Failed to fetch token:", err);
+        }
+
+        if (!token) {
+            toast.error("Authentication token missing!");
+            setLoading(false);
+            return;
+        }
 
         try {
             setLoading(true);
-            // 🟢 টোকেন ছাড়া শুধু ইমেইল পাঠানো হচ্ছে
-            const data = await getLibrarianDeliveries({ userEmail });
-            setDeliveries(data);
+            const res = await fetch(`${API_URL}/api/librarian/deliveries?email=${userEmail}`, {
+                headers: {
+                    "Authorization": `Bearer ${token}`
+                }
+            });
+
+            if (!res.ok) throw new Error("Failed to fetch data from server");
+
+            const result = await res.json();
+
+            if (result.success) {
+                const rawList = result.data || result.deliveries || [];
+                const cleanList = rawList.map(order => {
+                    const orderId = order.id || order._id?.toString() || order._id;
+                    return {
+                        ...order,
+                        id: typeof orderId === 'object' ? orderId['$oid'] || JSON.stringify(orderId) : orderId,
+                        status: order.status ? order.status.toLowerCase() : "pending"
+                    };
+                });
+                setDeliveries(cleanList);
+            } else {
+                setDeliveries([]);
+            }
         } catch (error) {
+            console.error("Fetch deliveries error:", error);
             toast.error("Failed to load delivery logs");
         } finally {
             setLoading(false);
         }
-    };
+    }, [userEmail, API_URL]);
 
-    // যখনই ইউজার ইমেইল পাওয়া যাবে, ডাটা ফেচ হবে
     useEffect(() => {
         if (userEmail) {
             loadDeliveries();
+        } else if (!authLoading && !userEmail) {
+            setLoading(false);
         }
-    }, [userEmail]);
+    }, [userEmail, authLoading, loadDeliveries]);
 
-    // স্ট্যাটাস পরিবর্তনের হ্যান্ডলার
-    const handleStatusChange = async (id, currentStatus) => {
-        let nextStatus = "";
+    // ⚡ স্ট্যাটাস পরিবর্তন হ্যান্ডলার
+    const handleStatusChange = async (id, newStatus) => {
+        let token = null;
+        try {
+            const { data } = await authClient.token();
+            if (data) token = data.token;
+        } catch (err) {
+            console.error("Failed to fetch token:", err);
+        }
 
-        if (currentStatus === "Pending") nextStatus = "Dispatched";
-        else if (currentStatus === "Dispatched") nextStatus = "Delivered";
-        else return;
-
-        if (!confirm(`Move status to '${nextStatus}'?`)) return;
+        if (!token) {
+            toast.error("Authentication token missing!");
+            return;
+        }
 
         try {
-            // 🟢 এখান থেকেও টোকেন বাদ দেওয়া হয়েছে
-            const res = await updateLibrarianDeliveryStatus(id, nextStatus);
-            if (res.success) {
-                toast.success(res.message);
-                loadDeliveries();
+            setUpdatingId(id);
+            const result = await updateLibrarianDeliveryStatus(id, newStatus, token);
+
+            if (result.success) {
+                toast.success(result.message || `Status updated to ${newStatus}! 🎉`);
+                await loadDeliveries();
             } else {
-                toast.error(res.message);
+                toast.error(result.message || "Failed to update status.");
             }
         } catch (error) {
-            toast.error("Something went wrong!");
+            console.error("Status update error:", error);
+            toast.error("Something went wrong during status update.");
+        } finally {
+            setUpdatingId(null);
         }
     };
 
-    const getStatusStyle = (status) => {
-        if (status === "Pending") return "bg-amber-400/10 text-amber-400 border-amber-400/20";
-        if (status === "Dispatched") return "bg-blue-500/10 text-blue-400 border-blue-500/20";
-        if (status === "Delivered") return "bg-emerald-500/10 text-emerald-400 border-emerald-500/20";
-        return "bg-gray-500/10 text-gray-400 border-gray-500/20";
+    // 🎨 ইমেজের মতো স্ট্যাটাস ব্যাজ কালার হেল্পার
+    const getStatusBadgeClass = (status) => {
+        switch (status?.toLowerCase()) {
+            case "pending":
+                return "bg-amber-50 text-amber-600 border border-amber-100 px-3 py-1 text-xs font-medium rounded-full";
+            case "dispatched":
+                return "bg-blue-50 text-blue-600 border border-blue-100 px-3 py-1 text-xs font-medium rounded-full";
+            case "delivered":
+                return "bg-emerald-50 text-emerald-600 border border-emerald-100 px-3 py-1 text-xs font-medium rounded-full";
+            default:
+                return "bg-gray-50 text-gray-500 border border-gray-100 px-3 py-1 text-xs font-medium rounded-full";
+        }
     };
 
-    if (isPending || loading || !userEmail) {
+    if (authLoading || loading) {
         return (
-            <div className="min-h-screen bg-gray-950 flex items-center justify-center text-white">
-                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-amber-400"></div>
+            <div className="flex justify-center items-center min-h-[400px]">
+                <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-indigo-600"></div>
+                <span className="ml-3 text-gray-500 text-sm font-medium">Loading requests...</span>
             </div>
         );
     }
 
     return (
-        <div className="p-6 md:p-10 bg-gray-950 min-h-screen text-gray-100 space-y-6">
-            <div className="space-y-2">
-                <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-amber-400">
-                    Manage Deliveries
-                </h1>
-                <p className="text-sm text-gray-400">
-                    Review incoming client book requests, update states from Pending to Dispatched to Delivered.
-                </p>
+        <div className="container mx-auto p-6 max-w-7xl font-sans">
+            {/* Header Title Section - Exactly like image */}
+            <div className="mb-8">
+                <h1 className="text-3xl font-bold text-[#111827] tracking-tight">Manage Deliveries</h1>
+                <p className="text-sm text-gray-500 mt-1">Update delivery status for your book requests.</p>
             </div>
 
-            <div className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden shadow-2xl">
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse">
+            {/* List Table Section */}
+            {deliveries.length === 0 ? (
+                <div className="bg-white rounded-xl border border-gray-100 p-16 text-center">
+                    <p className="text-gray-400 text-sm">No delivery requests found.</p>
+                </div>
+            ) : (
+                <div className="w-full overflow-x-auto">
+                    <table className="w-full text-left border-separate border-spacing-y-3">
                         <thead>
-                            <tr className="bg-gray-950 border-b border-gray-800 text-xs font-bold uppercase tracking-wider text-gray-400">
-                                <th className="p-4 pl-6">Client Info</th>
-                                <th className="p-4">Book Title</th>
-                                <th className="p-4">Request Date</th>
-                                <th className="p-4">Status</th>
-                                <th className="p-4 pr-6 text-right">Actions</th>
+                            <tr className="text-gray-400 text-[11px] font-bold uppercase tracking-wider px-4">
+                                <th className="pb-2 pl-6 w-[25%]">Client</th>
+                                <th className="pb-2 w-[30%]">Book</th>
+                                <th className="pb-2 w-[15%]">Date</th>
+                                <th className="pb-2 w-[15%]">Status</th>
+                                <th className="pb-2 pr-6 w-[15%] text-left">Actions</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-gray-800/60 text-sm">
-                            {deliveries.length === 0 ? (
-                                <tr>
-                                    <td colSpan="5" className="p-8 text-center text-gray-500">
-                                        No delivery actions requested yet.
+                        <tbody>
+                            {deliveries.map((order) => (
+                                <tr
+                                    key={order.id}
+                                    className="bg-white rounded-xl shadow-sm border border-gray-50 hover:bg-gray-50/50 transition-all duration-150"
+                                >
+                                    {/* Client Column */}
+                                    <td className="py-5 pl-6 rounded-l-xl">
+                                        <div className="font-semibold text-gray-800 text-[14px]">
+                                            {order.userName || "Unknown Client"}
+                                        </div>
+                                        <div className="text-xs text-gray-400 mt-0.5">
+                                            {order.userEmail || "No Email"}
+                                        </div>
+                                    </td>
+
+                                    {/* Book Title Column */}
+                                    <td className="py-5 pr-4">
+                                        <div className="font-medium text-gray-800 text-[14px] line-clamp-1">
+                                            {order.bookTitle}
+                                        </div>
+                                    </td>
+
+                                    {/* Date Column */}
+                                    <td className="py-5 text-gray-600 text-[14px]">
+                                        {order.date || order.createdAt ? new Date(order.date || order.createdAt).toLocaleDateString('en-US', {
+                                            month: 'short', day: 'numeric', year: 'numeric'
+                                        }) : "N/A"}
+                                    </td>
+
+                                    {/* Status Column */}
+                                    <td className="py-5">
+                                        <span className={getStatusBadgeClass(order.status)}>
+                                            {order.status ? order.status.charAt(0).toUpperCase() + order.status.slice(1) : "Pending"}
+                                        </span>
+                                    </td>
+
+                                    {/* Actions Column - Exactly as described */}
+                                    <td className="py-5 pr-6 rounded-r-xl">
+                                        {(order.status === "pending" || !order.status) && (
+                                            <button
+                                                disabled={updatingId === order.id}
+                                                onClick={() => handleStatusChange(order.id, "Dispatched")}
+                                                className="px-4 py-2 text-xs font-semibold bg-[#4F46E5] hover:bg-[#4338CA] text-white rounded-lg shadow-md shadow-indigo-100 transition-all active:scale-95 disabled:opacity-50"
+                                            >
+                                                {updatingId === order.id ? "Processing..." : "Mark Dispatched"}
+                                            </button>
+                                        )}
+
+                                        {order.status === "dispatched" && (
+                                            <button
+                                                disabled={updatingId === order.id}
+                                                onClick={() => handleStatusChange(order.id, "Delivered")}
+                                                className="px-4 py-2 text-xs font-semibold bg-[#0EA5E9] hover:bg-[#0284C7] text-white rounded-lg shadow-md shadow-sky-100 transition-all active:scale-95 disabled:opacity-50"
+                                            >
+                                                {updatingId === order.id ? "Processing..." : "Mark Delivered"}
+                                            </button>
+                                        )}
+
+                                        {order.status === "delivered" && (
+                                            <div className="flex items-center gap-1.5 text-gray-500 font-medium text-sm pl-1">
+                                                <span className="text-emerald-500">✔</span> Complete
+                                            </div>
+                                        )}
                                     </td>
                                 </tr>
-                            ) : (
-                                deliveries.map((item) => (
-                                    <tr key={item.id} className="hover:bg-gray-950/40 transition-colors">
-                                        <td className="p-4 pl-6">
-                                            <div className="flex items-center gap-3">
-                                                <div className="p-2 bg-gray-800 rounded-lg text-gray-400">
-                                                    <User className="w-4 h-4" />
-                                                </div>
-                                                <div>
-                                                    <p className="font-semibold text-gray-200">{item.clientName}</p>
-                                                    <p className="text-xs text-gray-500 font-mono">{item.clientEmail}</p>
-                                                </div>
-                                            </div>
-                                        </td>
-
-                                        <td className="p-4 font-medium text-gray-300 max-w-[200px] truncate">
-                                            <div className="flex items-center gap-2">
-                                                <BookOpen className="w-3.5 h-3.5 text-amber-400/70" />
-                                                <span className="truncate">{item.bookTitle}</span>
-                                            </div>
-                                        </td>
-
-                                        <td className="p-4 text-gray-400 text-xs">
-                                            <div className="flex items-center gap-1.5">
-                                                <Calendar className="w-3.5 h-3.5 text-gray-600" />
-                                                {item.date ? new Date(item.date).toLocaleDateString() : "N/A"}
-                                            </div>
-                                        </td>
-
-                                        <td className="p-4">
-                                            <span className={`text-xs font-extrabold uppercase tracking-widest px-2.5 py-1 rounded-md border ${getStatusStyle(item.status)}`}>
-                                                {item.status}
-                                            </span>
-                                        </td>
-
-                                        <td className="p-4 pr-6 text-right">
-                                            {item.status === "Pending" && (
-                                                <button
-                                                    onClick={() => handleStatusChange(item.id, "Pending")}
-                                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg transition-all"
-                                                >
-                                                    <Truck className="w-3.5 h-3.5" /> Dispatch Book
-                                                </button>
-                                            )}
-
-                                            {item.status === "Dispatched" && (
-                                                <button
-                                                    onClick={() => handleStatusChange(item.id, "Dispatched")}
-                                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg transition-all"
-                                                >
-                                                    <CheckCircle2 className="w-3.5 h-3.5" /> Complete Delivery
-                                                </button>
-                                            )}
-
-                                            {item.status === "Delivered" && (
-                                                <span className="text-xs font-medium text-gray-500 inline-flex items-center gap-1 justify-end">
-                                                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" /> Done
-                                                </span>
-                                            )}
-                                        </td>
-                                    </tr>
-                                ))
-                            )}
+                            ))}
                         </tbody>
                     </table>
                 </div>
-            </div>
+            )}
         </div>
     );
-}
+};

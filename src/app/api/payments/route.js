@@ -18,8 +18,10 @@ export async function POST(request) {
         const formData = await request.formData();
         const priceAmount = formData.get('price');
         const bookId = formData.get('bookId');
+        const librarianEmail = formData.get('librarianEmail');
         const title = formData.get('title');
         const status = formData.get('status') || 'pending';
+        console.log('BookId', bookId);
 
         // 💳 ১. স্ট্রাইপ ওয়ান-টাইম পেমেন্ট সেশন তৈরি (প্রথমে করতে হবে যেন session.id পাওয়া যায়)
         const session = await stripe.checkout.sessions.create({
@@ -43,6 +45,7 @@ export async function POST(request) {
                 userId: user?.id || '',
                 price: priceAmount,
                 status: status,
+                librarianEmail: librarianEmail,
             },
             mode: 'payment',
             success_url: `${origin}/success?session_id={CHECKOUT_SESSION_ID}`,
@@ -58,6 +61,7 @@ export async function POST(request) {
             userName: user?.name || formData.get('userName'),
             userId: user?.id || formData.get('userId'),
             status: 'pending',
+            librarianEmail: librarianEmail,
             sessionId: session.id, // 👈 এখন স্ট্রাইপ থেকে পাওয়া সেশন আইডি এখানে যুক্ত হলো!
             createdAt: new Date()
         };
