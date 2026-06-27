@@ -58,11 +58,28 @@ export default function LibrarianOverview() {
         fetchLibrarianStats();
     }, [session?.user?.email, sessionLoading]);
 
+    // 🛠️ ইয়ার্নিং ফরম্যাটার ফাংশন (টাকা এবং ডলার দুইটাই হ্যান্ডেল করবে নিরাপদে)
+    const formatEarnings = (value) => {
+        if (value === undefined || value === null) return "৳0.00";
+
+        // স্ট্রিং বা অন্য ফরম্যাটে আসলে সংখ্যায় রূপান্তর করে নেওয়া হচ্ছে
+        const numericValue = Number(value);
+        if (isNaN(numericValue)) return `৳${value}`;
+
+        // বিডিটি (BDT/৳) ফরম্যাটে দেখানোর জন্য
+        return new Intl.NumberFormat('en-BD', {
+            style: 'currency',
+            currency: 'BDT',
+            minimumFractionDigits: 2
+        }).format(numericValue);
+    };
+
     // ডাটা বা সেশন লোড হওয়ার সময় স্পিনার দেখাবে
     if (loading || sessionLoading) {
         return (
             <div className="h-[60vh] flex items-center justify-center">
-                <Spinner size="lg" color="indigo" label="Librarian লাইভ ডাটা লোড হচ্ছে..." />
+                <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-indigo-600"></div>
+                <span className="ml-3 text-slate-500 text-sm font-medium">Librarian লাইভ ডাটা লোড হচ্ছে...</span>
             </div>
         );
     }
@@ -74,7 +91,7 @@ export default function LibrarianOverview() {
                 <p className="text-slate-500 text-sm mt-1">Monitor your book collections, logistics, and analytics insights in real-time.</p>
             </div>
 
-            {/* 📊 ৩টি লাইভ ডাটা কার্ড (রিকোয়ারমেন্ট অনুযায়ী নাম ম্যাচ করা হয়েছে) */}
+            {/* 📊 ৩টি লাইভ ডাটা কার্ড */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
 
                 {/* Total Books Listed */}
@@ -92,7 +109,7 @@ export default function LibrarianOverview() {
                     </div>
                 </Card>
 
-                {/* Total Earnings */}
+                {/* Total Earnings - NOW FIXED 🟢 */}
                 <Card className="border-none bg-white shadow-[0_2px_8px_-3px_rgba(0,0,0,0.05)] rounded-2xl">
                     <div className="p-6 flex flex-row items-center gap-5">
                         <div className="w-14 h-14 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center shrink-0">
@@ -101,10 +118,7 @@ export default function LibrarianOverview() {
                         <div>
                             <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Total Earnings</p>
                             <h2 className="text-3xl font-bold text-slate-800 mt-1">
-                                {typeof stats?.totalEarnings === 'number'
-                                    ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(stats.totalEarnings)
-                                    : `$${stats?.totalEarnings || "0.00"}`
-                                }
+                                {formatEarnings(stats?.totalEarnings)}
                             </h2>
                         </div>
                     </div>
