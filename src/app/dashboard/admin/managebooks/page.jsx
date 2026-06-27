@@ -113,7 +113,7 @@ const ManageAllBooks = () => {
                                     </div>
                                     <div className="flex items-center gap-1.5 col-span-2 min-w-0">
                                         <UserCheck size={14} className="text-slate-400 shrink-0" />
-                                        <span className="truncate">Librarian: <strong className="font-medium text-slate-700">{book.librarianName || 'N/A'}</strong></span>
+                                        <span className="truncate">Librarian: <strong className="font-medium text-slate-700">{book.librarian || 'librarian'}</strong></span>
                                     </div>
                                 </div>
 

@@ -3,16 +3,32 @@
 import React, { useState, useEffect } from "react";
 import { Users, BookOpen, Truck, DollarSign } from "lucide-react";
 import { Card, Spinner } from "@heroui/react";
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, AreaChart, Area, XAxis, YAxis, CartesianGrid } from "recharts";
 
 const COLORS = ["#6366f1", "#8b5cf6", "#f59e0b", "#10b981", "#3b82f6", "#ec4899", "#ef4444"];
+
+// এপিআই-তে মান্থলি ডাটা না থাকলে এই ডামি ডাটাটি ব্যাকআপ হিসেবে কাজ করবে
+const fallbackMonthlyRevenue = [
+    { name: "Jan", revenue: 0 },
+    { name: "Feb", revenue: 0 },
+    { name: "Mar", revenue: 0 },
+    { name: "Apr", revenue: 0 },
+    { name: "May", revenue: 0 },
+    { name: "Jun", revenue: 0 },
+    { name: "Jul", revenue: 0 },
+    { name: "Aug", revenue: 0 },
+    { name: "Sep", revenue: 0 },
+    { name: "Oct", revenue: 0 },
+    { name: "Nov", revenue: 0 },
+    { name: "Dec", revenue: 0 }
+];
 
 export default function AdminOverview() {
     const [stats, setStats] = useState(null);
     const [loading, setLoading] = useState(true);
     const [isMobile, setIsMobile] = useState(false);
 
-    // 🚀 স্ক্রিন সাইজ ট্র্যাক করার জন্য এবং SSR এরর এড়াতে ইফেক্ট
+    // 🚀 স্ক্রিন সাইজ ট্র্যাক করার জন্য এবং SSR এরর এড়াতে ইফেক্ট
     useEffect(() => {
         const handleResize = () => {
             setIsMobile(window.innerWidth < 768);
@@ -52,17 +68,20 @@ export default function AdminOverview() {
         );
     }
 
+    // চার্টের জন্য মান্থলি ডাটা সোর্স নির্ধারণ
+    const revenueData = stats?.monthlyRevenue || fallbackMonthlyRevenue;
+
     return (
-        <div className="p-4 md:p-6 bg-slate-50/50 min-h-screen w-full max-w-7xl mx-auto">
+        <div className="p-4 md:p-6 bg-slate-50/50 min-h-screen w-full max-w-7xl mx-auto space-y-6 md:space-y-8">
 
             {/* Header Section */}
-            <div className="mb-6 md:mb-8">
+            <div>
                 <h1 className="text-2xl md:text-3xl font-bold text-[#1e293b] tracking-tight">Admin Dashboard</h1>
                 <p className="text-slate-500 text-xs md:text-sm mt-1">All live data and analytics on the platform.</p>
             </div>
 
-            {/* 📊 ৪টি লাইভ ডাটা কার্ড (লার্জ ডিভাইসের জন্য ফিক্সড টেক্সট ভিউ) */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-6 md:mb-8">
+            {/* 📊 ৪টি লাইভ ডাটা কার্ড */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
 
                 {/* Total Users */}
                 <Card className="border-none bg-white shadow-[0_2px_8px_-3px_rgba(0,0,0,0.05)] rounded-2xl w-full">
@@ -96,7 +115,7 @@ export default function AdminOverview() {
 
                 {/* Total Deliveries */}
                 <Card className="border-none bg-white shadow-[0_2px_8px_-3px_rgba(0,0,0,0.05)] rounded-2xl w-full">
-                    <Card.Content className="p-5 md:p-6 flex flex-row items-center gap-4 md:gap-5">
+                    <Card.Content className="p-5 md:p-6 flex flex-row justify-items-center gap-4 md:gap-5">
                         <div className="w-12 h-12 md:w-14 md:h-14 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center shrink-0">
                             <Truck className="w-5 md:w-6" />
                         </div>
@@ -111,13 +130,13 @@ export default function AdminOverview() {
 
                 {/* Total Revenue */}
                 <Card className="border-none bg-white shadow-[0_2px_8px_-3px_rgba(0,0,0,0.05)] rounded-2xl w-full">
-                    <Card.Content className="p-5 md:p-6 flex flex-row items-center gap-4 md:gap-5">
+                    <Card.Content className="p-4 md:p-6 flex flex-row justify-items-center gap-4 md:gap-5">
                         <div className="w-12 h-12 md:w-14 md:h-14 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center shrink-0">
                             <DollarSign className="w-5 md:w-6" />
                         </div>
-                        <div className="flex-1 min-w-fit">
+                        <div className="flex-1 gap-2">
                             <p className="text-[11px] md:text-xs font-semibold text-slate-400 uppercase tracking-wider block whitespace-nowrap">Total Revenue</p>
-                            <h2 className="text-2xl md:text-3xl font-bold text-slate-800 mt-0.5 md:mt-1 block">
+                            <h2 className="text-xl md:text-2xl font-bold text-slate-800 mt-0.5 md:mt-1 block">
                                 ${stats?.totalRevenue !== undefined ? stats.totalRevenue : "0.00"}
                             </h2>
                         </div>
@@ -132,7 +151,6 @@ export default function AdminOverview() {
                     <h3 className="text-base md:text-lg font-bold text-slate-900 mb-4 tracking-tight">Books by Category</h3>
 
                     <div className="w-full flex flex-col items-center gap-6">
-
                         {/* Recharts Container */}
                         <div className="w-full h-48 md:h-64 flex items-center justify-center relative overflow-hidden">
                             {stats?.chartData && stats.chartData.length > 0 ? (
@@ -181,10 +199,57 @@ export default function AdminOverview() {
                                 ))}
                             </div>
                         )}
-
                     </div>
                 </Card.Content>
             </Card>
+
+            {/* 📉 নতুন সংযোজন: Monthly Revenue Area Chart (সবার নিচে) */}
+            <Card className="border-none bg-white shadow-[0_2px_8px_-3px_rgba(0,0,0,0.05)] rounded-2xl p-4 md:p-6">
+                <Card.Content>
+                    <div className="mb-6">
+                        <h3 className="text-base md:text-lg font-bold text-slate-900 tracking-tight">Monthly Revenue</h3>
+                        <p className="text-xs text-slate-400 mt-0.5">Overview of total earnings generated month by month.</p>
+                    </div>
+
+                    <div className="w-full h-72 md:h-80 select-none">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <AreaChart data={revenueData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                                <defs>
+                                    <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="5%" stopColor="#10b981" stopOpacity={0.2} />
+                                        <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                                    </linearGradient>
+                                </defs>
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                                <XAxis
+                                    dataKey="name"
+                                    axisLine={false}
+                                    tickLine={false}
+                                    tick={{ fill: '#94a3b8', fontSize: isMobile ? 10 : 12 }}
+                                />
+                                <YAxis
+                                    axisLine={false}
+                                    tickLine={false}
+                                    tick={{ fill: '#94a3b8', fontSize: isMobile ? 10 : 12 }}
+                                />
+                                <Tooltip
+                                    contentStyle={{ background: "#1e293b", borderRadius: "12px", border: "none", color: "#fff", fontSize: "13px" }}
+                                    formatter={(value) => [`$${value}`, "Revenue"]}
+                                />
+                                <Area
+                                    type="monotone"
+                                    dataKey="revenue"
+                                    stroke="#10b981"
+                                    strokeWidth={2}
+                                    fillOpacity={1}
+                                    fill="url(#colorRevenue)"
+                                />
+                            </AreaChart>
+                        </ResponsiveContainer>
+                    </div>
+                </Card.Content>
+            </Card>
+
         </div>
     );
 }

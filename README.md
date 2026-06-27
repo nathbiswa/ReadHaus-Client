@@ -1,36 +1,65 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# 📚 ReadHubs - Modern Library Management & Admin Dashboard
 
-## Getting Started
+A comprehensive, full-stack Library Management System designed to streamline book distribution, inventory tracking, real-time platform analytics, and user purchase management. Built with a robust backend and a highly responsive dashboard frontend.
 
-First, run the development server:
+## 🔗 Live Application
+* Live URL: https://read-haus-client.vercel.app
+* Live URL Server: https://readhaus-server.vercel.app
+* Live GitHub Repo Client: https://github.com/nathbiswa/ReadHaus-Client
+* Live GitHub Repl server: https://github.com/nathbiswa/ReadHaus-Server
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+---
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 🎯 Project Purpose
+The primary goal of **ReadHubs** is to bridge the gap between avid readers, librarians, and system administrators. It automates the process of book discovery, ordering/delivery logs, and track monthly earnings seamlessly. Instead of manual ledger management, ReadHubs offers real-time visualization of platform revenue and book distribution metrics directly from live database instances.
 
-You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
+---
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## ✨ Key Features
 
-## Learn More
+### 👨‍💻 Admin & Librarian Dashboard
+* **Live Financial Analytics:** Interactive day-by-day revenue streaming (`AreaChart`) mapped directly from MongoDB `delivered` or `complete` order logs.
+* **Inventory Overview:** A visually stunning half-pie distribution chart (`PieChart`) dividing available books dynamically by their respective genres/categories.
+* **Platform Metrics:** Quick-glance metrics cards showcasing accurate figures for *Total Users*, *Total Books*, *Total Deliveries*, and *Total Lifetime Revenue*.
+* **Responsive Architecture:** Fully optimized grid system that flows flawlessly across ultra-wide monitors, tablets, and mobile breakpoints.
 
-To learn more about Next.js, take a look at the following resources:
+### 📖 Reader Platform
+* **Secure Checkout Session:** Seamless integration with payment triggers, logging exact session states (`sessionId`) back into the system database.
+* **Real-time Status Tracking:** Track book acquisition status instantly from *Pending* to *Delivered* or *Complete*.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+---
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## 🛠️ Core Tech Stack & Dependencies
 
-## Deploy on Vercel
+Here are the key npm packages and libraries that drive this application:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### Frontend
+* **Framework:** `Next.js` (React 19 / App Router ready)
+* **UI Component Library:** `@heroui/react` (formerly NextUI)
+* **Styling engine:** `tailwindcss`
+* **Icons:** `lucide-react`
+* **Data Visualization / Charts:** `recharts`
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### Backend & Database
+* **Server Framework:** `Express.js` (Node.js environment)
+* **Database Object Modeling:** `mongoose`
+* **Database Store:** `MongoDB Atlas`
+* **Authentication:** `better-auth` (JWT)
+* **Emails:** `nodemailer`
+
+### Deployment
+* **Hosting:** `Vercel`
+* **Continuous Integration:** `GitHub Actions`
+
+---
+
+## 📝 Project Documentation
+
+The project documentation is organized into the following sections:
+
+* [**Installation**](#installation)
+* [**Usage**](#usage)
+* [**Deployment**](#deployment)
+* [**Contributing**](#contributing)
+
+---
