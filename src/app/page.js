@@ -1,5 +1,6 @@
 import Banner from "@/components/Banner";
 import BookSection from "@/components/books/BookSection";
+import LovedByReaders from "@/components/LovedByReaders";
 import PopularCategories from "@/components/PopularCategories";
 import TopLibrarians from "@/components/TopLibrarians";
 import WhyChooseUs from "@/components/WhyChooseUs";
@@ -13,6 +14,7 @@ export default function Home() {
       <TopLibrarians />
       <PopularCategories />
       <WhyChooseUs />
+      <LovedByReaders />
 
     </div>
   );
