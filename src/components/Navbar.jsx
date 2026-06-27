@@ -95,7 +95,7 @@ const Navbar = () => {
 
                         {/* হোম পেজ লিংক সহ লোগো ইমেজ সেটিং */}
                         <Link href="/">
-                            <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-1">
                                 <Image
                                     height={100}
                                     width={100}
@@ -103,7 +103,7 @@ const Navbar = () => {
                                     src="/logo.png"
                                     alt="logo"
                                     style={{ width: 'auto', height: 'auto' }}
-                                    className="object-contain"
+                                    className="object-cover"
                                 />
                                 <p className="font-bold text-xl text-blue-600">ReadHaus</p>
                             </div>
@@ -120,6 +120,9 @@ const Navbar = () => {
                         </li>
                         <li>
                             <Link href="/about" className={navClass("/about")}>About</Link>
+                        </li>
+                        <li>
+                            <Link href="/contact" className={navClass("/contact")}>Contact</Link>
                         </li>
                     </ul>
 
@@ -217,7 +220,9 @@ const Navbar = () => {
                                     About
                                 </Link>
                             </li>
-
+                            <li>
+                                <Link href="/contact" className={navClass("/contact")}>Contact</Link>
+                            </li>
                             {/* মোবাইল ভিউতে সেশন অনুযায়ী ডাইনামিক বাটন */}
                             <li className="mt-2 pt-4 border-t border-separator flex flex-col gap-2">
                                 {user ? (
