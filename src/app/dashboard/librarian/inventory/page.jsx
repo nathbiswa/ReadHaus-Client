@@ -25,13 +25,24 @@ const ManageInventory = () => {
     useEffect(() => {
         const fetchInventory = async () => {
             if (sessionLoading || !session?.user?.email) return;
+            let token = null;
+            try {
+                const { data } = await authClient.token();
+                if (data) token = data.token;
+            } catch (err) {
+                console.error("Failed to fetch token:", err);
+            }
 
+            if (!token) {
+                toast.error("Authentication token missing!");
+                return;
+            }
+
+            // console.log("Token:", token);
             try {
                 setLoading(true);
                 const timestamp = new Date().getTime();
                 const userEmail = session.user.email;
-                const token = localStorage.getItem("better-auth.session-token") || "";
-
                 const res = await fetch(
                     `${API_URL}/api/librarian/books?email=${userEmail}&_t=${timestamp}`,
                     {
@@ -79,8 +90,8 @@ const ManageInventory = () => {
         setBooks(books.map(b => (b.id === bookId || b._id === bookId) ? { ...b, status: newStatus } : b));
 
         try {
-            const token = localStorage.getItem("better-auth.session-token") || "";
-
+            const { data: tokenData } = await authClient.token();
+            const token = tokenData?.token;
             const res = await fetch(`${API_URL}/api/librarian/books/${bookId}/toggle-status`, {
                 method: "PATCH",
                 headers: {

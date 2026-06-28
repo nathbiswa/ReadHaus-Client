@@ -16,6 +16,7 @@ export async function POST(request) {
 
         // 📥 HTML Form থেকে পাঠানো ডাটা রিসিভ করা
         const formData = await request.formData();
+        console.log('Form Data', formData);
         const priceAmount = formData.get('price');
         const bookId = formData.get('bookId');
         const librarianEmail = formData.get('librarianEmail');
@@ -65,6 +66,9 @@ export async function POST(request) {
             sessionId: session.id, // 👈 এখন স্ট্রাইপ থেকে পাওয়া সেশন আইডি এখানে যুক্ত হলো!
             createdAt: new Date()
         };
+
+        console.log('payload', deliveryPayload)
+
 
         // 🚀 ৩. আপনার এক্সপ্রেস ব্যাকএন্ডে ডাটা পাঠানো
         const baseBackendUrl = process.env.NEXT_PUBLIC_BASE_URL;

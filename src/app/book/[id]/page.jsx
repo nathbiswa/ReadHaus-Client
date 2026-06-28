@@ -6,6 +6,7 @@ import { Star, Heart, ArrowLeft, ShieldCheck, MessageSquare, Send, DollarSign, E
 import { getSingleBook } from "@/lib/action/getbooks";
 import { toast } from "react-toastify";
 import { authClient } from "@/lib/auth-client";
+import Image from "next/image";
 
 export default function BookDetailsPage() {
     // 🛠️ ফিক্স ১: ক্লায়েন্ট কম্পোনেন্টে সরাসরি useParams() থেকে id নেওয়া হলো
@@ -18,6 +19,8 @@ export default function BookDetailsPage() {
     const [deleteLoading, setDeleteLoading] = useState(false);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isWishlisted, setIsWishlisted] = useState(false);
+
+    console.log("BOOk", book);
 
     // রিভিউ ও কমেন্ট স্টেট
     const [reviews, setReviews] = useState([]);
@@ -60,22 +63,40 @@ export default function BookDetailsPage() {
 
     // ❤️ উইশলিস্ট হ্যান্ডলার
     const handleWishlistClick = async () => {
+        // 🌟 ১. সবার আগে ইউজার লগইন আছে কিনা চেক করা (Best Practice)
         if (!user) {
             toast.info("Please login to add this book to your wishlist!");
             router.push("/login");
             return;
         }
 
+        // 🌟 ২. ইউজারের রোল 'readers' কিনা চেক করা
         if (user?.role !== "readers") {
             toast.error("Only users with 'readers' role can add to wishlist!");
             return;
         }
 
+        // 🌟 ৩. ফ্রন্টএন্ড স্টেটে যদি অলরেডি ট্রু থাকে, তবে এপিআই কল না করেই টোস্ট দেখাবে
         if (isWishlisted) {
-            toast.info("This book is already in your wishlist!");
+            toast.warning("This book is already in your wishlist!");
             return;
         }
 
+        // 🌟 ৪. অথেন্টিকেশন টোকেন সংগ্রহ করা
+        let token = null;
+        try {
+            const { data } = await authClient.token();
+            if (data) token = data.token;
+        } catch (err) {
+            console.error("Failed to fetch token:", err);
+        }
+
+        if (!token) {
+            toast.error("Authentication token missing!");
+            return;
+        }
+
+        // 🌟 ৫. উইশলিস্টের জন্য ডাটা অবজেক্ট তৈরি
         try {
             const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:5000";
 
@@ -90,9 +111,13 @@ export default function BookDetailsPage() {
                 createdAt: new Date().toISOString()
             };
 
+            // 🌟 ৬. এপিআই রিকোয়েস্ট পাঠানো (ফিক্সড হেডারসহ)
             const res = await fetch(`${baseUrl}/api/wishlist`, {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${token}` // দুটি হেডার এখন একই অবজেক্টে আছে
+                },
                 body: JSON.stringify(wishlistData),
             });
 
@@ -102,7 +127,9 @@ export default function BookDetailsPage() {
                 toast.success("Added to wishlist successfully!");
                 setIsWishlisted(true);
             } else {
-                toast.error(data.message || "Failed to add to wishlist");
+                // ব্যাকএন্ডে ডুপ্লিকেট বা অন্য কোনো সমস্যা হলে সেই মেসেজটি টোস্ট আকারে দেখাবে
+                toast.warning(data.message || "Failed to add to wishlist");
+
                 if (data.message?.includes("already")) {
                     setIsWishlisted(true);
                 }
@@ -113,21 +140,48 @@ export default function BookDetailsPage() {
         }
     };
 
-    // পার্চেস/পেমেন্ট ফর্ম সাবমিট হ্যান্ডলার
-    const handlePurchaseSubmit = (e) => {
+    // পার্চেস/পেমেন্ট ফর্ম সাবমিট হ্যান্ডলার (আপডেটেড)
+    const handlePurchaseSubmit = () => { // এখানে আর 'e' বা e.preventDefault() লাগবে না
         if (!user) {
-            e.preventDefault();
             toast.info("Please login to request delivery and pay!");
             router.push("/login");
             return;
         }
 
         if (user?.role !== "readers") {
-            e.preventDefault();
             toast.error("Only users with 'readers' role can purchase books!");
             return;
         }
+
+        // 🌟 যদি অলরেডি কেনা থাকে, তবে এখানেই কোড থেমে যাবে, ফর্ম পর্যন্ত যাবেই না
+        if (book?.isPurchased) {
+            toast.warning("You have already purchased or requested this book!");
+            return;
+        }
+
+        // সব শর্ত পূরণ হলে জাভাস্ক্রিপ্ট নিজে থেকে ফর্মের action-কে সাবমিট করবে
+        const form = document.getElementById("purchase-form");
+        if (form) {
+            form.submit();
+        }
     };
+
+
+    // // পার্চেস/পেমেন্ট ফর্ম সাবমিট হ্যান্ডলার
+    // const handlePurchaseSubmit = (e) => {
+    //     if (!user) {
+    //         e.preventDefault();
+    //         toast.info("Please login to request delivery and pay!");
+    //         router.push("/login");
+    //         return;
+    //     }
+
+    //     if (user?.role !== "readers") {
+    //         e.preventDefault();
+    //         toast.error("Only users with 'readers' role can purchase books!");
+    //         return;
+    //     }
+    // };
 
     // 🛠️ লিব্রারিয়ান একশন হ্যান্ডলারসমূহ 
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:5000";
@@ -278,9 +332,11 @@ export default function BookDetailsPage() {
 
                     <div className="lg:col-span-5 bg-gray-950 rounded-2xl p-8 flex items-center justify-center border border-gray-800/60 relative">
                         {/* 🛠️ ফিক্স ২: এক্সটার্নাল ইমেজ ক্র্যাশ এড়াতে স্ট্যান্ডার্ড img ব্যবহার করা হলো */}
-                        <img
+                        <Image
                             src={book.image || "https://images.unsplash.com/photo-1543002588-bfa74002ed7e"}
                             alt={book.title || "Book Cover"}
+                            width={380}
+                            height={380}
                             className="max-h-[380px] object-cover rounded-lg shadow-2xl"
                             loading="lazy"
                         />
@@ -372,7 +428,7 @@ export default function BookDetailsPage() {
                                             {isCheckedOut ? "Unavailable (Checked Out)" : "Delivery Disabled (Owner)"}
                                         </button>
                                     ) : (
-                                        <form action="/api/payments" method="POST" onSubmit={handlePurchaseSubmit} className="w-full">
+                                        <form action="/api/payments" method="POST" className="w-full">
                                             <input type="hidden" name="price" value={book.price || book.deliveryFee || 0} />
                                             <input type="hidden" name="status" value="pending" />
                                             <input type="hidden" name="bookId" value={book._id || ""} />
